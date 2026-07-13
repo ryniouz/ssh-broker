@@ -50,6 +50,13 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         wgManager = new WgTunnelManager(this);
         buildOverlay();
+        // The WebView's disk cache can keep serving old CSS/JS from the live
+        // broker pages across app opens even after the server redeploys with
+        // fixes (hit this exact class of bug before in a sibling project) --
+        // clear it on every cold start so the dashboard is always fetched fresh.
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().clearCache(true);
+        }
     }
 
     private void buildOverlay() {

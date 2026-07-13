@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}SSH Broker{% endblock %}</title>
-  <link rel="icon" type="image/png" href="/static/logo.png">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/png" href="/static/logo.png?v={{ APP_VERSION }}">
+  <link rel="stylesheet" href="/static/style.css?v={{ APP_VERSION }}">
   <script>(function(){try{if(localStorage.getItem('theme')==='night')document.documentElement.setAttribute('data-theme','night');}catch(e){}})();</script>
 </head>
 <body>
@@ -13,8 +13,8 @@
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
-      <img src="/static/logo.png" alt="SSH Broker">
-      <div><div class="name">SSH Broker</div><div class="ver">v1.3.0</div></div>
+      <img src="/static/logo.png?v={{ APP_VERSION }}" alt="SSH Broker">
+      <div><div class="name">SSH Broker</div><div class="ver">v{{ APP_VERSION }}</div></div>
     </div>
     <nav class="nav">
       <a href="/">Dashboard</a>
@@ -35,8 +35,8 @@
   </aside>
 
   <div class="mtop">
-    <img src="/static/logo.png" alt="">
-    <b>SSH Broker</b><span class="ver">v1.3.0</span>
+    <img src="/static/logo.png?v={{ APP_VERSION }}" alt="">
+    <b>SSH Broker</b><span class="ver">v{{ APP_VERSION }}</span>
     <a href="/logout" class="signout">Sign out</a>
   </div>
 

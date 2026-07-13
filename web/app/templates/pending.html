@@ -3,7 +3,7 @@
 {% block auth %}
 <div class="auth">
   <div class="auth-card">
-    <div class="auth-logo"><img src="/static/logo.png" alt=""><span class="name">SSH Broker</span></div>
+    <div class="auth-logo"><img src="/static/logo.png?v={{ APP_VERSION }}" alt=""><span class="name">SSH Broker</span></div>
     <h1>Request received</h1>
     <p class="sub">Waiting on an admin.</p>
     <div class="okbox">Thanks, <strong>{{ username }}</strong>. Your account is pending approval. You can sign in once an admin approves it.</div>

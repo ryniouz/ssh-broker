@@ -1,4 +1,4 @@
-"""SSH Broker dashboard (v1.2.2).
+"""SSH Broker dashboard.
 
 Server-rendered admin UI:
   * First sign-up becomes the admin; later sign-ups need approval (Users).
@@ -33,11 +33,25 @@ API_BASE = os.environ.get("WEB_API_BASE", "http://127.0.0.1:8000")
 ADMIN_TOKEN = os.environ.get("WEB_ADMIN_TOKEN", "")
 SESSION_SECRET = os.environ.get("WEB_SESSION_SECRET", "change-me-in-env")
 DB_PATH = os.environ.get("WEB_DB_PATH", "/data/web.db")
+APP_VERSION = "1.3.1"
+
+
+class NoCacheStaticFiles(StaticFiles):
+    """Browsers/WebViews can cache static assets aggressively enough that a
+    redeploy silently keeps serving old CSS/JS -- this project has hit that
+    exact bug before (personal-appstore). Force revalidation on every asset;
+    templates also cache-bust the URL itself with ?v={{ APP_VERSION }}."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
 
 BASE_DIR = os.path.dirname(__file__)
 app = FastAPI(title="SSH Broker Dashboard")
 app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+app.mount("/static", NoCacheStaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 
@@ -87,6 +101,7 @@ templates.env.filters["ago"] = _ago
 templates.env.filters["fmtts"] = _fmtts
 templates.env.filters["recent"] = _recent
 templates.env.filters["pretty"] = _pretty
+templates.env.globals["APP_VERSION"] = APP_VERSION
 
 
 # ---- password hashing (bcrypt, 72-byte safe) -----------------------------

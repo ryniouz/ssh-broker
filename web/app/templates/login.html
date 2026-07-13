@@ -3,7 +3,7 @@
 {% block auth %}
 <div class="auth">
   <div class="auth-card">
-    <div class="auth-logo"><img src="/static/logo.png" alt=""><span class="name">SSH Broker</span></div>
+    <div class="auth-logo"><img src="/static/logo.png?v={{ APP_VERSION }}" alt=""><span class="name">SSH Broker</span></div>
     <h1>Sign in</h1>
     <p class="sub">Admin console for your broker.</p>
     {% if error %}<div class="err">{{ error }}</div>{% endif %}
