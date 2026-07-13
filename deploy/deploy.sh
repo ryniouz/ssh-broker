@@ -21,7 +21,7 @@ set -a; source "$ENV_FILE"; set +a
 : "${API_IP:=10.11.15.10}"
 : "${WEB_IP:=10.11.15.11}"
 : "${DATA_DIR:=/mnt/user/appdata/ssh-broker-data}"
-: "${IMAGE_TAG:=1.2.4}"
+: "${IMAGE_TAG:=1.2.5}"
 
 echo "==> data dir:   ${DATA_DIR}"
 echo "==> network:    ${NET_NAME}  api=${API_IP} web=${WEB_IP}"

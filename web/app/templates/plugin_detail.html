@@ -66,6 +66,8 @@
   <h2>Instructions / README
     {% if doc %}<span class="count mono">{{ doc.filename }}</span>{% endif %}
   </h2>
+  {% if doc_ok %}<div class="okbox">✓ Uploaded <strong>{{ doc_ok }}</strong>.</div>{% endif %}
+  {% if doc_err %}<div class="err">{{ doc_err }}</div>{% endif %}
   {% if doc_html %}
     <article class="doc" style="margin-bottom:1rem">{{ doc_html|safe }}</article>
     <div class="row-actions">

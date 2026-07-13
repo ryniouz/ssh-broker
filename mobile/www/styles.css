@@ -36,3 +36,4 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);
 .btn:active{filter:brightness(.94)}
 .addr{margin:1rem 0 0;font-size:.78rem}
 .mono{font-family:var(--mono);color:var(--muted)}
+.hint{margin:.9rem 0 0;font-size:.76rem;color:var(--muted);line-height:1.5}

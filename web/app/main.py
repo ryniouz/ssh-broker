@@ -15,6 +15,7 @@ import json
 import time
 import sqlite3
 import logging
+from urllib.parse import quote
 
 import bcrypt
 import httpx
@@ -139,14 +140,24 @@ def del_doc(name: str) -> None:
 
 
 async def _read_upload(upload: "UploadFile | None") -> tuple[str, str] | None:
-    """Return (filename, text) for a non-empty uploaded doc, else None."""
+    """Return (filename, text) for a non-empty uploaded doc.
+
+    Returns None only when no file was attached at all (a legitimate "skip" for
+    the optional readme field at plugin creation). Anything the admin actually
+    tried to upload but that isn't usable raises ValueError with a message the
+    caller shows back to them — a silent no-op here is exactly what made this
+    bug hard to spot (upload "succeeds", nothing ever gets stored)."""
     if upload is None or not upload.filename:
         return None
     raw = await upload.read(MAX_DOC_BYTES + 1)
     if len(raw) > MAX_DOC_BYTES:
-        raise ValueError("file too large (max 256 KB)")
+        raise ValueError(f"'{upload.filename}' is too large (max 256 KB)")
+    if b"\x00" in raw:
+        raise ValueError(f"'{upload.filename}' doesn't look like a text file — upload a .md or .txt")
     text = raw.decode("utf-8", "replace")
-    return (os.path.basename(upload.filename), text) if text.strip() else None
+    if not text.strip():
+        raise ValueError(f"'{upload.filename}' is empty")
+    return (os.path.basename(upload.filename), text)
 
 
 def user_count() -> int:
@@ -496,7 +507,7 @@ async def plugin_new(request: Request, name: str = Form(...), description: str =
 
 
 @app.get("/plugins/{name}", response_class=HTMLResponse)
-async def plugin_detail(request: Request, name: str):
+async def plugin_detail(request: Request, name: str, doc_err: str = "", doc_ok: str = ""):
     if not is_admin(request):
         return RedirectResponse("/login", status_code=302)
     try:
@@ -514,7 +525,7 @@ async def plugin_detail(request: Request, name: str):
     doc_html = _md.markdown(doc["content"], extensions=["tables", "fenced_code"]) if doc else None
     return templates.TemplateResponse("plugin_detail.html",
         _admin_ctx(request, p=p, error=None, logs=logs, usage=plugin_usage(p, "<PLUGIN_API_KEY>"),
-                   doc=doc, doc_html=doc_html))
+                   doc=doc, doc_html=doc_html, doc_err=doc_err or None, doc_ok=doc_ok or None))
 
 
 @app.post("/plugins/{name}/edit")
@@ -567,11 +578,14 @@ async def plugin_readme(request: Request, name: str, readme: UploadFile = File(.
         return RedirectResponse("/login", status_code=302)
     try:
         doc = await _read_upload(readme)
-    except ValueError:
-        return RedirectResponse(f"/plugins/{name}?err=doc", status_code=302)
-    if doc:
-        set_doc(name, doc[0], doc[1])
-    return RedirectResponse(f"/plugins/{name}", status_code=302)
+    except ValueError as e:
+        return RedirectResponse(f"/plugins/{name}?doc_err={quote(str(e))}", status_code=302)
+    if not doc:
+        # this route requires a file; an empty/no file selection is an error here,
+        # not a silent skip (that's only valid for the optional field at creation)
+        return RedirectResponse(f"/plugins/{name}?doc_err={quote('No file was selected')}", status_code=302)
+    set_doc(name, doc[0], doc[1])
+    return RedirectResponse(f"/plugins/{name}?doc_ok={quote(doc[0])}", status_code=302)
 
 
 @app.post("/plugins/{name}/readme/delete")
