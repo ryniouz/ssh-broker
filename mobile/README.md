@@ -57,5 +57,15 @@ curl -fSS -X POST https://app.ryniouz.com/api/upload \
 ```
 
 ## Changing the broker address
-Edit `BASE` in `www/gate.js` and the two IPs in
-`android-res/network_security_config.xml`, then rebuild.
+Edit `BASE` in `www/gate.js`, the two IPs in `android-res/network_security_config.xml`,
+**and** `server.allowNavigation` in `capacitor.config.json` (see gotcha below), then rebuild.
+
+## Gotcha: navigating the WebView to the broker requires `allowNavigation`
+Capacitor's WebView blocks in-app navigation to any host not listed in
+`server.allowNavigation` — `Bridge.launchIntent()` fires an external-browser
+`Intent` (or silently no-ops) instead of loading the URL in the WebView. This
+only bites apps that do a full `window.location` navigation to an external
+host, like `gate.js` does to hand off to the live dashboard — a normal
+fetch/XHR-only SPA wouldn't hit it. If the connectivity probe succeeds but the
+app never actually shows the dashboard, this is almost certainly why. Fix:
+list every external host you navigate to in `server.allowNavigation`.
