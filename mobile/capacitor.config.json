@@ -3,7 +3,11 @@
   "appName": "SSH Broker",
   "webDir": "www",
   "backgroundColor": "#0f1216",
-  "server": { "androidScheme": "https", "cleartext": true },
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true,
+    "allowNavigation": ["10.11.15.10", "10.11.15.11"]
+  },
   "android": { "backgroundColor": "#0f1216" },
   "plugins": {
     "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#0f1216", "androidScaleType": "CENTER_INSIDE", "showSpinner": false },
