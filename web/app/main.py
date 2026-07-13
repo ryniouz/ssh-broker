@@ -178,6 +178,19 @@ async def logs_view(request: Request, level: str = "", plugin: str = ""):
     })
 
 
+@app.get("/manual", response_class=HTMLResponse)
+async def manual(request: Request):
+    if not current_user(request):
+        return RedirectResponse("/login", status_code=302)
+    import markdown as _md
+    md_path = os.path.join(BASE_DIR, "manual.md")
+    with open(md_path, encoding="utf-8") as f:
+        html = _md.markdown(f.read(), extensions=["tables", "fenced_code"])
+    return templates.TemplateResponse("manual.html", {
+        "request": request, "user": current_user(request), "content": html,
+    })
+
+
 @app.post("/plugins/{name}/{action}")
 async def plugin_action(request: Request, name: str, action: str):
     if not current_user(request):

@@ -68,3 +68,15 @@ tr.lvl-denied{background:rgba(210,153,34,.05)}
 .auth-card .hint{color:var(--dim);font-size:.78rem;margin-top:1rem}
 .err{background:rgba(248,81,73,.12);border:1px solid #5a2321;color:#ffb4ae;
   padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;font-size:.85rem}
+
+.doc{line-height:1.6}
+.doc h1{font-size:1.5rem;margin:.2rem 0 1rem}
+.doc h2{font-size:1.1rem;margin:1.6rem 0 .6rem;border-bottom:1px solid var(--line);padding-bottom:.3rem}
+.doc code{font-family:var(--mono);font-size:.85em;background:var(--panel2);
+  padding:.1rem .35rem;border-radius:5px}
+.doc pre{background:#0b0f16;border:1px solid var(--line);border-radius:10px;
+  padding:.9rem 1rem;overflow-x:auto}
+.doc pre code{background:none;padding:0}
+.doc table{margin:.6rem 0}
+.doc a{color:var(--accent)}
+.doc ol,.doc ul{padding-left:1.3rem}
