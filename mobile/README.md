@@ -9,10 +9,14 @@ when you're away from home.
 ## How it behaves
 1. **Splash** (dark, terminal-green logo) on launch.
 2. **Connectivity gate**, in order:
-   - **Network-aware start (v1.3.3):** if you're on the home Wi-Fi
-     (`Lucas Network`) — or the app can't identify the network — it tries the
-     broker directly on the LAN first. On cellular or any *other* Wi-Fi the LAN
-     is unreachable by definition, so it skips straight to the VPN.
+   - **Network-aware start (v1.3.3, whitelist editable since v1.3.4):** if
+     you're on a trusted Wi-Fi network — or the app can't identify the
+     network — it tries the broker directly on the LAN first. On cellular or
+     any *other* Wi-Fi the LAN is unreachable by definition, so it skips
+     straight to the VPN. The trusted-network list starts seeded with
+     `Lucas Network` and is editable from Settings -> About -> Wi-Fi
+     whitelist on the live dashboard (add the network you're currently on,
+     or remove one) — it's stored on-device, not on the broker.
    - Direct LAN probe (with retries) when applicable.
    - Not reachable → brings up the built-in **WireGuard tunnel** (system VPN
      consent prompt the first time), shows **"Authorizing connection…"** with a
@@ -24,7 +28,12 @@ when you're away from home.
      a retry button, instead of a browser error.
 3. Once connected, login and everything else are served by the broker's own
    web UI. An **"Exit & VPN off"** item in the menu closes the app *and* tears
-   down the device VPN so it doesn't linger (the tunnel is device-wide).
+   down the device VPN so it doesn't linger (the tunnel is device-wide). As of
+   v1.3.4 this reliably turns the tunnel off — v1.3.3 had two separate
+   `WgTunnelManager`/`GoBackend` instances (one owned by `MainActivity`, one by
+   `WgTunnelPlugin`), so "Exit & VPN off" was tearing down a tunnel a
+   different `GoBackend` had never brought up. Now both share one instance
+   via `WgTunnelManager.getInstance()`.
 4. **While using the app**, a native background check (not the JS above —
    that only runs once at launch) watches for the connection dropping. If it
    does, the same **"Authorizing connection…"** look appears over whatever

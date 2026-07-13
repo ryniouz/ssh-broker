@@ -69,5 +69,63 @@
     <dt>Source</dt><dd><a href="https://github.com/ryniouz/ssh-broker">github.com/ryniouz/ssh-broker</a></dd>
   </dl>
 </section>
+
+<section class="card" id="wifiWhitelistCard" style="display:none">
+  <h2>Wi-Fi whitelist</h2>
+  <p class="small">Networks the app treats as home — it tries the LAN directly on these before
+    falling back to the VPN. Detected from this device.</p>
+  <ul class="whitelist" id="whitelistList"></ul>
+  <button type="button" class="btn-ghost" id="addCurrentWifi" style="margin-top:.6rem">Add current Wi-Fi</button>
+</section>
 </div>
+<script>
+(function(){
+  var native = window.SshBrokerNative;
+  if (!native || !native.getWifiWhitelist) return;
+  var card = document.getElementById('wifiWhitelistCard');
+  var list = document.getElementById('whitelistList');
+  var addBtn = document.getElementById('addCurrentWifi');
+  card.style.display = '';
+
+  function render(){
+    var entries = [];
+    try { entries = JSON.parse(native.getWifiWhitelist() || '[]'); } catch(e){}
+    list.innerHTML = '';
+    entries.forEach(function(ssid){
+      var li = document.createElement('li');
+      var name = document.createElement('span');
+      name.textContent = ssid;
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'copy'; rm.textContent = 'Remove';
+      rm.onclick = function(){
+        if (confirm('Remove "' + ssid + '" from the trusted Wi-Fi list?')) {
+          native.removeWifiWhitelist(ssid);
+          render();
+        }
+      };
+      li.appendChild(name); li.appendChild(rm);
+      list.appendChild(li);
+    });
+    if (!entries.length) {
+      var empty = document.createElement('li');
+      empty.className = 'small'; empty.textContent = 'No trusted networks yet — cellular and unknown Wi-Fi always use the VPN.';
+      list.appendChild(empty);
+    }
+  }
+
+  addBtn.addEventListener('click', function(){
+    var ssid = native.getCurrentSsid && native.getCurrentSsid();
+    if (!ssid) {
+      alert("Couldn't read the current Wi-Fi name. Make sure you're connected to Wi-Fi and have granted location permission (needed by Android to read the network name).");
+      return;
+    }
+    if (confirm('Add "' + ssid + '" to the trusted Wi-Fi list?')) {
+      native.addWifiWhitelist(ssid);
+      render();
+    }
+  });
+
+  render();
+})();
+</script>
 {% endblock %}

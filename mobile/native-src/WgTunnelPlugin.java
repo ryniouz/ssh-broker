@@ -40,7 +40,7 @@ public class WgTunnelPlugin extends Plugin {
 
     @Override
     public void load() {
-        manager = new WgTunnelManager(getContext());
+        manager = WgTunnelManager.getInstance(getContext());
     }
 
     @PluginMethod

@@ -35,11 +35,29 @@ public class WgTunnelManager {
     private static final String USER_CONFIG_FILENAME = "user-wg.conf";
     private static final String DEFAULT_CONFIG_ASSET = "default-wg.conf";
 
+    private static volatile WgTunnelManager instance;
+
     private final Context context;
     private final GoBackend backend;
     private final SimpleTunnel tunnel = new SimpleTunnel(TUNNEL_NAME);
 
-    public WgTunnelManager(Context context) {
+    /**
+     * MainActivity (exit/watchdog) and WgTunnelPlugin (gate.js's connect/disconnect)
+     * each used to build their own WgTunnelManager -> their own GoBackend, so a
+     * tunnel brought up through one had no effect on the other's idea of "current
+     * tunnel handle". Concretely: "Exit & VPN off" called disconnect() on a
+     * GoBackend that never saw connect() get called, so setState(DOWN) was a
+     * no-op and the real tunnel (brought up by the plugin's GoBackend) stayed up.
+     * One shared instance per process fixes that.
+     */
+    public static synchronized WgTunnelManager getInstance(Context context) {
+        if (instance == null) {
+            instance = new WgTunnelManager(context.getApplicationContext());
+        }
+        return instance;
+    }
+
+    private WgTunnelManager(Context context) {
         this.context = context.getApplicationContext();
         this.backend = new GoBackend(this.context);
     }

@@ -33,7 +33,7 @@ API_BASE = os.environ.get("WEB_API_BASE", "http://127.0.0.1:8000")
 ADMIN_TOKEN = os.environ.get("WEB_ADMIN_TOKEN", "")
 SESSION_SECRET = os.environ.get("WEB_SESSION_SECRET", "change-me-in-env")
 DB_PATH = os.environ.get("WEB_DB_PATH", "/data/web.db")
-APP_VERSION = "1.3.3"
+APP_VERSION = "1.3.4"
 
 
 class NoCacheStaticFiles(StaticFiles):

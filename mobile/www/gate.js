@@ -11,10 +11,13 @@
  * WireGuard config file instead of just failing.
  *
  * v1.3.3: added Wi-Fi/cellular detection + a cancel button during VPN auth.
+ * v1.3.4: the trusted-SSID list moved out of this hardcoded constant into
+ * native storage (window.SshBrokerNative), editable from Settings -> About
+ * on the live dashboard -- see getWhitelist() below.
  * The direct-LAN retry probe (v1.0.1) and navigation-allowlist fix (v1.0.2)
  * are unchanged and still run whenever we take the direct path. */
 
-var HOME_SSID = "Lucas Network";
+var DEFAULT_HOME_SSID = "Lucas Network";
 var WEB_BASE = "http://10.11.15.11:8080";
 var API_BASE = "http://10.11.15.10:8000";
 var PROBES = [WEB_BASE + "/static/logo.png", API_BASE + "/health"];
@@ -44,6 +47,17 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 function wgPlugin() {
   var c = window.Capacitor;
   return (c && c.Plugins && c.Plugins.WgTunnel) || null;
+}
+
+function getWhitelist() {
+  try {
+    var raw = window.SshBrokerNative && window.SshBrokerNative.getWifiWhitelist
+      ? window.SshBrokerNative.getWifiWhitelist() : null;
+    var list = raw ? JSON.parse(raw) : null;
+    return (list && list.length) ? list : [DEFAULT_HOME_SSID];
+  } catch (e) {
+    return [DEFAULT_HOME_SSID];
+  }
 }
 
 function probeOnce(timeoutMs) {
@@ -110,10 +124,11 @@ async function attempt() {
   show(splash);
 
   var net = await getNetwork();
-  // Home Wi-Fi, or a network we can't identify -> the LAN might be reachable,
+  var whitelist = getWhitelist();
+  // Trusted Wi-Fi, or a network we can't identify -> the LAN might be reachable,
   // so try it directly first. Cellular / another Wi-Fi -> LAN is hopeless, VPN.
   var tryLanFirst =
-    (net.type === "wifi" && (net.ssid === HOME_SSID || !net.ssid)) ||
+    (net.type === "wifi" && (!net.ssid || whitelist.indexOf(net.ssid) !== -1)) ||
     net.type === "unknown" || net.type === "none";
 
   if (tryLanFirst && await tryDirect()) { finishToApp(); return; }

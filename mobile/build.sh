@@ -6,13 +6,13 @@
 # custom native sources (WireGuard tunnel plugin, MainActivity watchdog),
 # then builds an unsigned release and signs it with apksigner.
 #
-#   VERSION_NAME=1.3.3 VERSION_CODE=7 ./build.sh [BUILD_DIR]   (default C:/sshbroker-build)
+#   VERSION_NAME=1.3.4 VERSION_CODE=8 ./build.sh [BUILD_DIR]   (default C:/sshbroker-build)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${1:-/c/sshbroker-build}"
 KS_PASS="${SSHBROKER_KS_PASS:-SshBroker!Release2026}"
-VERSION_NAME="${VERSION_NAME:-1.3.3}"
-VERSION_CODE="${VERSION_CODE:-7}"
+VERSION_NAME="${VERSION_NAME:-1.3.4}"
+VERSION_CODE="${VERSION_CODE:-8}"
 export ANDROID_HOME="${ANDROID_HOME:-C:/Android}"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 JAVA_BIN="$(command -v java)"; export JAVA_HOME="${JAVA_HOME:-$(dirname "$(dirname "$JAVA_BIN")")}"
@@ -50,6 +50,17 @@ echo "==> custom native sources (WireGuard tunnel + watchdog)"
 PKG_DIR="android/app/src/main/java/com/ryniouz/sshbroker"
 mkdir -p "$PKG_DIR"
 cp native-src/MainActivity.java native-src/WgTunnelManager.java native-src/WgTunnelPlugin.java "$PKG_DIR"/
+
+echo "==> static system-bar colors (belt-and-suspenders alongside the imperative"
+echo "    Window calls in MainActivity -- closes any timing race where a theme"
+echo "    default could otherwise win a first-layout-pass attribute application)"
+STYLES=android/app/src/main/res/values/styles.xml
+grep -q "android:statusBarColor" "$STYLES" || sed -i \
+  's|<item name="android:background">@drawable/splash</item>|<item name="android:background">@drawable/splash</item>\n        <item name="android:statusBarColor">#FF17160F</item>\n        <item name="android:navigationBarColor">#FF17160F</item>\n        <item name="android:windowLightStatusBar">false</item>\n        <item name="android:windowLightNavigationBar">false</item>|' \
+  "$STYLES"
+sed -i \
+  's|<style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">|<style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">\n        <item name="android:statusBarColor">#FF17160F</item>\n        <item name="android:navigationBarColor">#FF17160F</item>\n        <item name="android:windowLightStatusBar">false</item>\n        <item name="android:windowLightNavigationBar">false</item>|' \
+  "$STYLES"
 
 echo "==> extra dependencies (WireGuard tunnel, activity result, core for window insets)"
 APP_GRADLE="android/app/build.gradle"

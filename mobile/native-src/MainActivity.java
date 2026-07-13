@@ -1,6 +1,13 @@
 package com.ryniouz.sshbroker;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -23,6 +30,9 @@ import com.getcapacitor.BridgeActivity;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import org.json.JSONArray;
 
 /**
  * The dashboard lives at gate.js's own JS layer for the INITIAL connect (it
@@ -54,11 +64,15 @@ public class MainActivity extends BridgeActivity {
     // reads as continuous with the system bars (both themes keep a near-black bar)
     private static final int SYSTEM_BAR_DARK = 0xFF17160F;
 
+    private static final String WIFI_PREFS = "sshbroker_wifi";
+    private static final String WIFI_WHITELIST_KEY = "whitelist";
+    private static final String DEFAULT_HOME_SSID = "Lucas Network";
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(WgTunnelPlugin.class);
         super.onCreate(savedInstanceState);
-        wgManager = new WgTunnelManager(this);
+        wgManager = WgTunnelManager.getInstance(this);
         buildOverlay();
 
         WebView webView = (getBridge() != null) ? getBridge().getWebView() : null;
@@ -98,11 +112,92 @@ public class MainActivity extends BridgeActivity {
     private class WebBridge {
         @JavascriptInterface
         public void exitAndDisconnect() {
-            runOnUiThread(() -> {
-                monitoring = false;
+            monitoring = false;
+            // wgManager.disconnect() can block briefly on the VpnService binding
+            // (GoBackend.setState performs a blocking wait for it) -- run it off
+            // the UI thread so it isn't cut short by finishAndRemoveTask(), then
+            // only close the app once the tunnel has actually torn down.
+            new Thread(() -> {
                 try { wgManager.disconnect(); } catch (Exception ignored) {}
-                finishAndRemoveTask();
-            });
+                runOnUiThread(MainActivity.this::finishAndRemoveTask);
+            }).start();
+        }
+
+        @JavascriptInterface
+        public String getWifiWhitelist() {
+            return new JSONArray(loadWhitelist()).toString();
+        }
+
+        @JavascriptInterface
+        public void addWifiWhitelist(String ssid) {
+            if (ssid == null || ssid.trim().isEmpty()) return;
+            Set<String> list = loadWhitelist();
+            list.add(ssid.trim());
+            saveWhitelist(list);
+        }
+
+        @JavascriptInterface
+        public void removeWifiWhitelist(String ssid) {
+            Set<String> list = loadWhitelist();
+            list.remove(ssid);
+            saveWhitelist(list);
+        }
+
+        /** Current Wi-Fi SSID, or null if not on Wi-Fi / permission not granted. */
+        @JavascriptInterface
+        public String getCurrentSsid() {
+            if (!"wifi".equals(currentTransportType())) return null;
+            return currentSsid();
+        }
+    }
+
+    /** Seeded with the original hardcoded home network so existing installs keep working. */
+    private Set<String> loadWhitelist() {
+        SharedPreferences prefs = getSharedPreferences(WIFI_PREFS, Context.MODE_PRIVATE);
+        Set<String> stored = prefs.getStringSet(WIFI_WHITELIST_KEY, null);
+        if (stored == null) {
+            Set<String> seeded = new LinkedHashSet<>();
+            seeded.add(DEFAULT_HOME_SSID);
+            return seeded;
+        }
+        return new LinkedHashSet<>(stored);
+    }
+
+    private void saveWhitelist(Set<String> list) {
+        getSharedPreferences(WIFI_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet(WIFI_WHITELIST_KEY, list)
+            .apply();
+    }
+
+    private String currentTransportType() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return "none";
+        Network net = cm.getActiveNetwork();
+        NetworkCapabilities caps = (net != null) ? cm.getNetworkCapabilities(net) : null;
+        if (caps == null) return "none";
+        if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return "wifi";
+        if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) return "cellular";
+        return "other";
+    }
+
+    /** Mirrors WgTunnelPlugin's currentSsid(); requires ACCESS_FINE_LOCATION (already
+     *  requested via gate.js's networkInfo() call on first launch) -- null if not granted. */
+    private String currentSsid() {
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wm == null) return null;
+            WifiInfo info = wm.getConnectionInfo();
+            if (info == null) return null;
+            String ssid = info.getSSID();
+            if (ssid == null) return null;
+            if (ssid.startsWith("\"") && ssid.endsWith("\"") && ssid.length() >= 2) {
+                ssid = ssid.substring(1, ssid.length() - 1);
+            }
+            if (ssid.isEmpty() || ssid.equalsIgnoreCase("<unknown ssid>")) return null;
+            return ssid;
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -148,6 +243,9 @@ public class MainActivity extends BridgeActivity {
     public void onResume() {
         super.onResume();
         monitoring = true;
+        // Re-apply defensively: some OEM skins/Capacitor's own splash overlay can
+        // reset window insets/bar colors around the launch and resume transitions.
+        applySystemBars();
         handler.postDelayed(healthCheck, CHECK_INTERVAL_MS);
     }
 
