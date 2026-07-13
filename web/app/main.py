@@ -18,7 +18,7 @@ import logging
 
 import bcrypt
 import httpx
-from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi import FastAPI, Request, Form, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -106,8 +106,47 @@ def db() -> sqlite3.Connection:
         c.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
     if "status" not in cols:
         c.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'")
+    # per-plugin instruction / README docs uploaded by an admin
+    c.execute(
+        "CREATE TABLE IF NOT EXISTS plugin_docs ("
+        "name TEXT PRIMARY KEY, filename TEXT, content TEXT, updated_at REAL)"
+    )
     c.commit()
     return c
+
+
+MAX_DOC_BYTES = 256 * 1024  # cap uploaded README size
+
+
+def get_doc(name: str):
+    with db() as c:
+        return c.execute("SELECT * FROM plugin_docs WHERE name=?", (name,)).fetchone()
+
+
+def set_doc(name: str, filename: str, content: str) -> None:
+    with db() as c:
+        c.execute(
+            "INSERT INTO plugin_docs (name,filename,content,updated_at) VALUES (?,?,?,?) "
+            "ON CONFLICT(name) DO UPDATE SET filename=excluded.filename, "
+            "content=excluded.content, updated_at=excluded.updated_at",
+            (name, filename, content, time.time()),
+        )
+
+
+def del_doc(name: str) -> None:
+    with db() as c:
+        c.execute("DELETE FROM plugin_docs WHERE name=?", (name,))
+
+
+async def _read_upload(upload: "UploadFile | None") -> tuple[str, str] | None:
+    """Return (filename, text) for a non-empty uploaded doc, else None."""
+    if upload is None or not upload.filename:
+        return None
+    raw = await upload.read(MAX_DOC_BYTES + 1)
+    if len(raw) > MAX_DOC_BYTES:
+        raise ValueError("file too large (max 256 KB)")
+    text = raw.decode("utf-8", "replace")
+    return (os.path.basename(upload.filename), text) if text.strip() else None
 
 
 def user_count() -> int:
@@ -426,7 +465,8 @@ async def plugin_new_form(request: Request):
 
 @app.post("/plugins/new", response_class=HTMLResponse)
 async def plugin_new(request: Request, name: str = Form(...), description: str = Form(""),
-                     rate_limit_per_min: int = Form(60), capabilities_json: str = Form("{}")):
+                     rate_limit_per_min: int = Form(60), capabilities_json: str = Form("{}"),
+                     readme: UploadFile | None = File(None)):
     if not is_admin(request):
         return RedirectResponse("/login", status_code=302)
     form = {"name": name, "description": description, "rate": rate_limit_per_min, "capabilities": capabilities_json}
@@ -435,12 +475,18 @@ async def plugin_new(request: Request, name: str = Form(...), description: str =
     except json.JSONDecodeError as e:
         return templates.TemplateResponse("plugin_new.html",
             _admin_ctx(request, error=f"Capabilities is not valid JSON: {e}", form=form))
+    try:
+        doc = await _read_upload(readme)
+    except ValueError as e:
+        return templates.TemplateResponse("plugin_new.html", _admin_ctx(request, error=str(e), form=form))
     r = await api_post("/plugins", {"name": name, "description": description,
                                     "capabilities": caps, "rate_limit_per_min": int(rate_limit_per_min)})
     if r.status_code != 200:
         detail = r.json().get("detail", r.text) if r.headers.get("content-type", "").startswith("application/json") else r.text
         return templates.TemplateResponse("plugin_new.html", _admin_ctx(request, error=str(detail), form=form))
     data = r.json()
+    if doc:
+        set_doc(name, doc[0], doc[1])
     if data.get("status") != "created":
         # name already existed -> it was updated; go to its page
         return RedirectResponse(f"/plugins/{name}", status_code=302)
@@ -463,8 +509,12 @@ async def plugin_detail(request: Request, name: str):
         logs = await api_get("/logs", {"plugin": name, "limit": 200})
     except Exception:  # noqa: BLE001
         pass
+    import markdown as _md
+    doc = get_doc(name)
+    doc_html = _md.markdown(doc["content"], extensions=["tables", "fenced_code"]) if doc else None
     return templates.TemplateResponse("plugin_detail.html",
-        _admin_ctx(request, p=p, error=None, logs=logs, usage=plugin_usage(p, "<PLUGIN_API_KEY>")))
+        _admin_ctx(request, p=p, error=None, logs=logs, usage=plugin_usage(p, "<PLUGIN_API_KEY>"),
+                   doc=doc, doc_html=doc_html))
 
 
 @app.post("/plugins/{name}/edit")
@@ -511,11 +561,33 @@ async def plugin_rotate(request: Request, name: str):
         _admin_ctx(request, p=p, api_key=key, usage=plugin_usage(p, key), rotated=True))
 
 
+@app.post("/plugins/{name}/readme")
+async def plugin_readme(request: Request, name: str, readme: UploadFile = File(...)):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    try:
+        doc = await _read_upload(readme)
+    except ValueError:
+        return RedirectResponse(f"/plugins/{name}?err=doc", status_code=302)
+    if doc:
+        set_doc(name, doc[0], doc[1])
+    return RedirectResponse(f"/plugins/{name}", status_code=302)
+
+
+@app.post("/plugins/{name}/readme/delete")
+async def plugin_readme_delete(request: Request, name: str):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    del_doc(name)
+    return RedirectResponse(f"/plugins/{name}", status_code=302)
+
+
 @app.post("/plugins/{name}/delete")
 async def plugin_delete(request: Request, name: str):
     if not is_admin(request):
         return RedirectResponse("/login", status_code=302)
     await api_delete(f"/plugins/{name}")
+    del_doc(name)
     return RedirectResponse("/", status_code=302)
 
 

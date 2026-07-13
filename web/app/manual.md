@@ -1,4 +1,4 @@
-# SSH Broker — Operator Manual (v1.2.2)
+# SSH Broker — Operator Manual (v1.2.3)
 
 One persistent SSH connection to the host, shared by all your apps through a
 small capability-gated API. Apps never hold SSH creds — they hold a scoped API
@@ -74,7 +74,11 @@ runs the query — e.g. `nvidia-smi --query-gpu=utilization.gpu,memory.used --fo
 
 **Manage plugins** from the dashboard: click a plugin to open its page — live
 connection status + client IP, per-plugin activity log, edit capabilities,
-enable/disable, **regenerate key**, or delete. The full "Instruction for Claude"
+enable/disable, **regenerate key**, or delete. You can also **upload an
+instruction / README file** (`.md` or `.txt`) when creating a plugin or from its
+page; it's rendered on the plugin page. As of v1.2.3 the `upload` capability
+(SFTP push of files under a path prefix) works — earlier versions silently
+dropped it. The full "Instruction for Claude"
 (build + use plugins, with a GPU example) is at the bottom of this manual, and
 each plugin page generates a ready-to-save `PLUGIN_<name>.md` usage file.
 

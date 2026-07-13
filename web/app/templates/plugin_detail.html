@@ -63,6 +63,33 @@
 </section>
 
 <section class="card">
+  <h2>Instructions / README
+    {% if doc %}<span class="count mono">{{ doc.filename }}</span>{% endif %}
+  </h2>
+  {% if doc_html %}
+    <article class="doc" style="margin-bottom:1rem">{{ doc_html|safe }}</article>
+    <div class="row-actions">
+      <form method="post" action="/plugins/{{ p.name }}/readme/delete"
+            onsubmit="return confirm('Remove the uploaded README?')">
+        <button class="mini deny">Remove README</button></form>
+    </div>
+    <details style="margin-top:.8rem">
+      <summary class="small">Replace file</summary>
+      <form method="post" action="/plugins/{{ p.name }}/readme" enctype="multipart/form-data" style="margin-top:.6rem">
+        <input type="file" name="readme" accept=".md,.markdown,.txt,text/plain,text/markdown" required>
+        <button type="submit" class="mini" style="margin-top:.6rem">Upload</button>
+      </form>
+    </details>
+  {% else %}
+    <p class="small">No instruction file yet. Upload a <code>.md</code> or <code>.txt</code> documenting this plugin (max 256&nbsp;KB).</p>
+    <form method="post" action="/plugins/{{ p.name }}/readme" enctype="multipart/form-data">
+      <input type="file" name="readme" accept=".md,.markdown,.txt,text/plain,text/markdown" required>
+      <button type="submit" class="mini" style="margin-top:.6rem">Upload README</button>
+    </form>
+  {% endif %}
+</section>
+
+<section class="card">
   <h2>Activity log <span class="count">{{ logs|length }}</span></h2>
   <table>
     <thead><tr><th>Time</th><th>Level</th><th>Action</th><th>Detail</th></tr></thead>

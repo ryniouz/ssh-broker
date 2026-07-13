@@ -4,13 +4,16 @@
 <div class="page-h"><h1>New plugin</h1><p>Declare what an app may do. See the <a href="/manual">Manual</a> for the full schema and examples (Docker, GPU, sensors…).</p></div>
 <section class="card">
   {% if error %}<div class="err">{{ error }}</div>{% endif %}
-  <form method="post" action="/plugins/new">
+  <form method="post" action="/plugins/new" enctype="multipart/form-data">
     <div class="form-grid">
       <label>Name<input name="name" pattern="[a-z0-9-]+" placeholder="my-app" value="{{ form.name or '' }}" required></label>
       <label>Rate limit / min<input name="rate_limit_per_min" type="number" value="{{ form.rate or 60 }}" required></label>
       <label class="full">Description<input name="description" placeholder="what this app does" value="{{ form.description or '' }}"></label>
       <label class="full">Capabilities (JSON) — metrics, commands, upload
         <textarea name="capabilities_json" class="cloud-box" spellcheck="false">{{ form.capabilities }}</textarea>
+      </label>
+      <label class="full">Instruction / README file (optional, .md or .txt, max 256&nbsp;KB)
+        <input type="file" name="readme" accept=".md,.markdown,.txt,text/plain,text/markdown">
       </label>
       <div class="actions">
         <button type="submit">Create plugin</button>

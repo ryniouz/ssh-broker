@@ -36,7 +36,16 @@ def _validate_capabilities(caps: dict) -> dict:
         for pname, pspec in (spec.get("params") or {}).items():
             # compile the regex now so a bad pattern fails loudly at load time
             re.compile(pspec.get("pattern", ".*"))
-    return {"metrics": list(metrics), "commands": commands}
+    out = {"metrics": list(metrics), "commands": commands}
+    # pass the upload grant through (previously dropped, which disabled SFTP for
+    # every plugin). Validate the path prefix so it can't be empty/relative.
+    upload = caps.get("upload")
+    if upload:
+        prefix = upload.get("path_prefix")
+        if not isinstance(prefix, str) or not prefix.startswith("/"):
+            raise ValueError("upload.path_prefix must be an absolute path (e.g. /mnt/user/appdata/)")
+        out["upload"] = {"path_prefix": prefix}
+    return out
 
 
 def upsert_plugin(name: str, description: str, capabilities: dict,
