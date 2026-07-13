@@ -17,7 +17,7 @@
     {% else %}
       <p class="hint">Already have an account? <a href="/login">Sign in</a></p>
     {% endif %}
-    <button type="button" class="theme-btn" onclick="toggleTheme()"><span class="theme-ico">☾</span><span class="theme-label">Night</span></button>
+    {% include "_theme_toggle.html" %}
   </div>
 </div>
 {% endblock %}

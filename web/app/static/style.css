@@ -34,6 +34,15 @@ a:hover{text-decoration:underline}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 h1,h2,h3{text-wrap:balance}
 
+/* icons: always SVG or CSS shapes, never text-glyph unicode symbols — some
+   Android WebView/font combos render glyphs like ☾/☀ as empty "tofu" boxes. */
+.ico,.ico-moon,.ico-sun{width:20px;height:20px;flex:0 0 auto;display:block}
+.theme-ico{display:inline-flex;width:15px;height:15px}
+.theme-ico svg{width:15px;height:15px}
+.dot-ind{display:inline-block;width:.5em;height:.5em;border-radius:50%;
+  background:currentColor;vertical-align:middle;margin-bottom:.15em}
+.dot-ind.hollow{background:transparent;border:1.5px solid currentColor}
+
 /* display headings — heavy weight + tight tracking stand in for a distinct
    display face (avoids a webfont dependency), used sparingly for band titles */
 .disp{font-weight:800;letter-spacing:-.03em;line-height:1.08;margin:0}

@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Splash / connecting -->
+  <!-- Splash / connecting / authorizing VPN -->
   <section id="splash" class="screen">
     <div class="brandwrap">
       <img class="logo" src="logo.png" alt="SSH Broker">
@@ -18,7 +18,7 @@
     </div>
   </section>
 
-  <!-- Offline / not on home network -->
+  <!-- Offline / not on home network / no VPN available -->
   <section id="offline" class="screen hidden">
     <div class="card">
       <svg class="glyph" viewBox="0 0 24 24" width="64" height="64" fill="none"
@@ -35,6 +35,25 @@
       <p class="hint">Still not working on Wi‑Fi? Check that "Client isolation" /
         "AP isolation" is off for your network — some routers block devices
         from reaching each other even on the same Wi‑Fi.</p>
+    </div>
+  </section>
+
+  <!-- WireGuard config needed: bundled/saved tunnel couldn't connect -->
+  <section id="configPrompt" class="screen hidden">
+    <div class="card">
+      <svg class="glyph" viewBox="0 0 24 24" width="64" height="64" fill="none"
+           stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4Z"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+      <h2>Can't reach the broker</h2>
+      <p>You're not on the home network, and the built-in VPN tunnel couldn't connect. Upload a WireGuard config file to connect from here.</p>
+      <label class="file-btn">
+        Choose config file
+        <input type="file" id="wgFile" accept=".conf,text/plain" hidden>
+      </label>
+      <p class="err hidden" id="configError"></p>
+      <button id="wgRetryBtn" class="btn btn-ghost">Try again without a new file</button>
     </div>
   </section>
 

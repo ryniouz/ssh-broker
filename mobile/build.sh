@@ -2,21 +2,24 @@
 # Build the SSH Broker Android APK.
 #
 # Builds OUTSIDE OneDrive (OneDrive's file sync breaks gradle). Generates the
-# Capacitor android project fresh, injects the LAN cleartext config + icons,
+# Capacitor android project fresh, injects the LAN cleartext config + icons +
+# custom native sources (WireGuard tunnel plugin, MainActivity watchdog),
 # then builds an unsigned release and signs it with apksigner.
 #
-#   ./build.sh [BUILD_DIR]     (default C:/sshbroker-build)
+#   VERSION_NAME=1.3.0 VERSION_CODE=4 ./build.sh [BUILD_DIR]   (default C:/sshbroker-build)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${1:-/c/sshbroker-build}"
 KS_PASS="${SSHBROKER_KS_PASS:-SshBroker!Release2026}"
+VERSION_NAME="${VERSION_NAME:-1.0.2}"
+VERSION_CODE="${VERSION_CODE:-3}"
 export ANDROID_HOME="${ANDROID_HOME:-C:/Android}"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 JAVA_BIN="$(command -v java)"; export JAVA_HOME="${JAVA_HOME:-$(dirname "$(dirname "$JAVA_BIN")")}"
 
-echo "==> build dir: $BUILD_DIR"
+echo "==> build dir: $BUILD_DIR   version $VERSION_NAME ($VERSION_CODE)"
 rm -rf "$BUILD_DIR"; mkdir -p "$BUILD_DIR"
-cp -r "$HERE"/{package.json,capacitor.config.json,www,resources,scripts,android-res} "$BUILD_DIR"/
+cp -r "$HERE"/{package.json,capacitor.config.json,www,resources,scripts,android-res,native-src} "$BUILD_DIR"/
 cd "$BUILD_DIR"
 
 echo "==> npm install"; npm install --no-audit --no-fund
@@ -31,6 +34,32 @@ MANIFEST=android/app/src/main/AndroidManifest.xml
 grep -q networkSecurityConfig "$MANIFEST" || sed -i \
   's#android:supportsRtl="true"#android:supportsRtl="true"\n        android:networkSecurityConfig="@xml/network_security_config"#' "$MANIFEST"
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+
+echo "==> custom native sources (WireGuard tunnel + watchdog)"
+PKG_DIR="android/app/src/main/java/com/ryniouz/sshbroker"
+mkdir -p "$PKG_DIR"
+cp native-src/MainActivity.java native-src/WgTunnelManager.java native-src/WgTunnelPlugin.java "$PKG_DIR"/
+
+echo "==> WireGuard dependency"
+APP_GRADLE="android/app/build.gradle"
+grep -q "com.wireguard.android" "$APP_GRADLE" || sed -i \
+  "s#dependencies {#dependencies {\n    implementation 'com.wireguard.android:tunnel:1.0.20230706'\n    implementation 'androidx.activity:activity:1.9.0'#" \
+  "$APP_GRADLE"
+
+echo "==> bundled default WireGuard config (this device only, never committed)"
+if [ -f "$HERE/secrets/default.conf" ]; then
+  mkdir -p android/app/src/main/assets
+  cp "$HERE/secrets/default.conf" android/app/src/main/assets/default-wg.conf
+  echo "    bundled: $HERE/secrets/default.conf"
+else
+  echo "    !! no $HERE/secrets/default.conf found — building WITHOUT a bundled tunnel."
+  echo "       The app will still work on the home LAN and accept a user-supplied"
+  echo "       config at runtime, but the automatic VPN fallback has nothing to try."
+fi
+
+echo "==> version"
+sed -i "s/versionCode [0-9]\+/versionCode $VERSION_CODE/; s/versionName \"[^\"]*\"/versionName \"$VERSION_NAME\"/" \
+  android/app/build.gradle
 
 echo "==> launcher icons + splash"; npx --no @capacitor/assets generate --android
 echo "==> sync"; npx --no cap sync android

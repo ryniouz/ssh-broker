@@ -6,3 +6,4 @@ resources/splash-dark.png
 *.keystore
 keystore.properties
 *.apk
+secrets/

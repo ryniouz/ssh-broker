@@ -8,7 +8,7 @@
     <p class="sub">Waiting on an admin.</p>
     <div class="okbox">Thanks, <strong>{{ username }}</strong>. Your account is pending approval. You can sign in once an admin approves it.</div>
     <p class="hint"><a href="/login">Back to sign in</a></p>
-    <button type="button" class="theme-btn" onclick="toggleTheme()"><span class="theme-ico">☾</span><span class="theme-label">Night</span></button>
+    {% include "_theme_toggle.html" %}
   </div>
 </div>
 {% endblock %}

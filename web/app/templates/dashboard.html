@@ -6,7 +6,7 @@
   <div class="band band-dark">
     <div class="band-inner">
       <p class="eyebrow">
-        {% if ssh.configured and ssh.connected %}● connected{% elif ssh.configured %}● reconnecting{% else %}○ not configured{% endif %}
+        {% if ssh.configured and ssh.connected %}<span class="dot-ind"></span> connected{% elif ssh.configured %}<span class="dot-ind"></span> reconnecting{% else %}<span class="dot-ind hollow"></span> not configured{% endif %}
       </p>
       <h1 class="disp" style="font-size:clamp(1.4rem,2.4vw,1.9rem)">Broker → Host</h1>
       <div class="prompt">
@@ -49,7 +49,7 @@
       <div class="top">
         <span class="pname">{% if is_admin %}<a href="/plugins/{{ p.name }}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</span>
         {% if not p.enabled %}<span class="pill off">disabled</span>
-        {% elif p.last_seen|recent %}<span class="pill on">● active</span>
+        {% elif p.last_seen|recent %}<span class="pill on"><span class="dot-ind"></span> active</span>
         {% elif p.last_seen %}<span class="pill idle">idle</span>
         {% else %}<span class="pill off">never connected</span>{% endif %}
       </div>

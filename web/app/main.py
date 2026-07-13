@@ -16,6 +16,8 @@ import time
 import sqlite3
 import logging
 from urllib.parse import quote
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import bcrypt
 import httpx
@@ -59,8 +61,15 @@ def _ago(ts):
     return f"{int(d // 86400)}d ago"
 
 
+DISPLAY_TZ = ZoneInfo(os.environ.get("WEB_DISPLAY_TZ", "America/Vancouver"))
+
+
 def _fmtts(ts):
-    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(float(ts))) if ts else ""
+    if not ts:
+        return ""
+    # server timestamps are stored as UTC epoch seconds; render in the
+    # operator's local timezone rather than the container's (usually UTC)
+    return datetime.fromtimestamp(float(ts), tz=DISPLAY_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
 
 
 def _recent(ts, secs: int = 120) -> bool:

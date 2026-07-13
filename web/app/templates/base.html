@@ -14,7 +14,7 @@
   <aside class="sidebar">
     <div class="brand">
       <img src="/static/logo.png" alt="SSH Broker">
-      <div><div class="name">SSH Broker</div><div class="ver">v1.2.6</div></div>
+      <div><div class="name">SSH Broker</div><div class="ver">v1.3.0</div></div>
     </div>
     <nav class="nav">
       <a href="/">Dashboard</a>
@@ -28,9 +28,7 @@
     <div class="side-foot">
       <div class="whoami">Signed in as <b>{{ user.username }}</b>{% if is_admin %} · admin{% endif %}</div>
       <div class="side-actions">
-        <button type="button" class="theme-btn" onclick="toggleTheme()">
-          <span class="theme-ico">☾</span><span class="theme-label">Night</span>
-        </button>
+        {% include "_theme_toggle.html" %}
         <a href="/logout" class="signout">Sign out</a>
       </div>
     </div>
@@ -38,7 +36,7 @@
 
   <div class="mtop">
     <img src="/static/logo.png" alt="">
-    <b>SSH Broker</b><span class="ver">v1.2.6</span>
+    <b>SSH Broker</b><span class="ver">v1.3.0</span>
     <a href="/logout" class="signout">Sign out</a>
   </div>
 
@@ -88,7 +86,8 @@ function toggleTheme(){
 }
 function updateThemeLabel(){
   var night=document.documentElement.getAttribute('data-theme')==='night';
-  document.querySelectorAll('.theme-ico').forEach(function(e){e.textContent=night?'☀':'☾';});
+  document.querySelectorAll('.ico-moon').forEach(function(e){e.style.display=night?'none':'block';});
+  document.querySelectorAll('.ico-sun').forEach(function(e){e.style.display=night?'block':'none';});
   document.querySelectorAll('.theme-label').forEach(function(e){e.textContent=night?'Day':'Night';});
 }
 function copyText(id, btn){
