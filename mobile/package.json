@@ -1,0 +1,20 @@
+{
+  "name": "ssh-broker-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hybrid Android shell for the SSH Broker dashboard (home-LAN only).",
+  "scripts": {
+    "sync": "cap sync android",
+    "open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/splash-screen": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.2.0"
+  }
+}

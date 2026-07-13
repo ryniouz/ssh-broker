@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>SSH Broker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Splash / connecting -->
+  <section id="splash" class="screen">
+    <div class="brandwrap">
+      <img class="logo" src="logo.png" alt="SSH Broker">
+      <h1 class="appname">SSH&nbsp;Broker</h1>
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="status" id="status">Connecting to your home network…</p>
+    </div>
+  </section>
+
+  <!-- Offline / not on home network -->
+  <section id="offline" class="screen hidden">
+    <div class="card">
+      <svg class="glyph" viewBox="0 0 24 24" width="64" height="64" fill="none"
+           stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5 12 4l9 6.5"/>
+        <path d="M5 9.5V20h14V9.5"/>
+        <path d="M9.5 20v-5h5v5"/>
+        <line x1="3" y1="3" x2="21" y2="21"/>
+      </svg>
+      <h2>You're not on the home network</h2>
+      <p>For security, SSH&nbsp;Broker is only reachable on your home network — it isn't exposed to the internet. Connect to your home Wi‑Fi and try again.</p>
+      <button id="retry" class="btn">Try again</button>
+      <p class="addr">Looking for <span id="addr" class="mono"></span></p>
+    </div>
+  </section>
+
+  <script src="gate.js"></script>
+</body>
+</html>

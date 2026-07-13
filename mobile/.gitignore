@@ -1,0 +1,8 @@
+node_modules/
+android/
+resources/icon.png
+resources/splash.png
+resources/splash-dark.png
+*.keystore
+keystore.properties
+*.apk

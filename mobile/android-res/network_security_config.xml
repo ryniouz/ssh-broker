@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cleartext (http) is permitted ONLY for the broker's home-LAN addresses.
+     Everything else stays https-only. Copied into
+     android/app/src/main/res/xml/ by build.sh. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.11.15.11</domain>
+        <domain includeSubdomains="false">10.11.15.10</domain>
+    </domain-config>
+</network-security-config>
