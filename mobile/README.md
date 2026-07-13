@@ -16,7 +16,7 @@ public internet, so the app talks only to the local address
 ## Layout
 ```
 mobile/
-├── capacitor.config.ts     # appId com.ryniouz.sshbroker, dark splash/status bar
+├── capacitor.config.json   # appId com.ryniouz.sshbroker, dark splash/status bar
 ├── www/                    # the bundled gate: index.html, gate.js, styles.css, logo.png
 ├── resources/icon-src.png  # the app icon (source)
 ├── android-res/network_security_config.xml   # cleartext allowed for LAN IPs only

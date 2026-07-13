@@ -16,7 +16,7 @@ JAVA_BIN="$(command -v java)"; export JAVA_HOME="${JAVA_HOME:-$(dirname "$(dirna
 
 echo "==> build dir: $BUILD_DIR"
 rm -rf "$BUILD_DIR"; mkdir -p "$BUILD_DIR"
-cp -r "$HERE"/{package.json,capacitor.config.ts,www,resources,scripts,android-res} "$BUILD_DIR"/
+cp -r "$HERE"/{package.json,capacitor.config.json,www,resources,scripts,android-res} "$BUILD_DIR"/
 cd "$BUILD_DIR"
 
 echo "==> npm install"; npm install --no-audit --no-fund
@@ -26,6 +26,10 @@ echo "==> add android"; npx --no cap add android
 echo "==> LAN cleartext network security config"
 mkdir -p android/app/src/main/res/xml
 cp android-res/network_security_config.xml android/app/src/main/res/xml/network_security_config.xml
+# Capacitor's manifest doesn't reference the NSC by default — add it.
+MANIFEST=android/app/src/main/AndroidManifest.xml
+grep -q networkSecurityConfig "$MANIFEST" || sed -i \
+  's#android:supportsRtl="true"#android:supportsRtl="true"\n        android:networkSecurityConfig="@xml/network_security_config"#' "$MANIFEST"
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 
 echo "==> launcher icons + splash"; npx --no @capacitor/assets generate --android

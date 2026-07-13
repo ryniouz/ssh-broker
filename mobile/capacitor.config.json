@@ -1,0 +1,12 @@
+{
+  "appId": "com.ryniouz.sshbroker",
+  "appName": "SSH Broker",
+  "webDir": "www",
+  "backgroundColor": "#0f1216",
+  "server": { "androidScheme": "https", "cleartext": true },
+  "android": { "backgroundColor": "#0f1216" },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#0f1216", "androidScaleType": "CENTER_INSIDE", "showSpinner": false },
+    "StatusBar": { "overlaysWebView": false, "style": "DARK", "backgroundColor": "#0f1216" }
+  }
+}
