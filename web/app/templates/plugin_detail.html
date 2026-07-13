@@ -93,26 +93,10 @@
 </section>
 
 <section class="card">
-  <h2>Activity log <span class="count">{{ logs|length }}</span></h2>
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Time</th><th>Level</th><th>IP</th><th>Action</th><th>Detail</th></tr></thead>
-    <tbody>
-    {% for r in logs %}
-      <tr>
-        <td class="mono small">{{ r.ts|fmtts }}</td>
-        <td><span class="pill {{ r.level }}">{{ r.level }}</span></td>
-        <td class="mono small">{{ r.ip or '—' }}</td>
-        <td class="mono small">{{ r.action }}</td>
-        <td class="mono small detail">{{ r.detail }}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="5" class="empty">No activity yet for this plugin.</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  <p class="small" style="margin-top:.6rem"><a href="/logs?plugin={{ p.name }}">Open in full log view →</a></p>
+  <h2>Activity log <span class="count">{{ log_count }}</span></h2>
+  {% set show_plugin = false %}
+  {% include "_loglist.html" %}
+  <p class="small" style="margin-top:.9rem"><a href="/logs?plugin={{ p.name }}">Open in full log view →</a></p>
 </section>
 
 <a href="/" class="btn btn-ghost">← Back to dashboard</a>

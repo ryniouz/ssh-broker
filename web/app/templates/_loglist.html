@@ -1,0 +1,26 @@
+{# Grouped, card-style log list. Expects: log_groups, show_plugin (bool). #}
+<div class="loglist">
+  {% for g in log_groups %}
+  <div class="logrow lvl-{{ g.level }}">
+    <span class="lvl-stripe"></span>
+    <div class="logbody">
+      <div class="logtop">
+        <span class="logaction mono">{{ g.action }}</span>
+        {% if g.count > 1 %}<span class="logcount">&times;{{ g.count }}</span>{% endif %}
+        <span class="pill {{ g.level }}">{{ g.level }}</span>
+        <span class="logtime mono">
+          {% if g.count > 1 and g.first_ts and g.first_ts != g.last_ts %}{{ g.first_ts|fmttime }}<span class="logrange"> – </span>{{ g.last_ts|fmttime }}{% else %}{{ g.last_ts|fmttime }}{% endif %}
+        </span>
+      </div>
+      <div class="logmeta">
+        {% if show_plugin and g.plugin %}<span class="mono">{{ g.plugin }}</span>{% endif %}
+        {% if g.ip %}<span class="mono">{{ g.ip }}</span>{% endif %}
+        <span>{{ g.last_ts|ago }}</span>
+      </div>
+      {% if g.detail %}<div class="logdetail mono">{{ g.detail }}</div>{% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty">No activity yet.</div>
+  {% endfor %}
+</div>

@@ -7,10 +7,16 @@ import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -44,18 +50,59 @@ public class MainActivity extends BridgeActivity {
     private int consecutiveFailures = 0;
     private volatile boolean monitoring = false;
 
+    // dark chrome color for the status/nav bars so the app's own dark top bar
+    // reads as continuous with the system bars (both themes keep a near-black bar)
+    private static final int SYSTEM_BAR_DARK = 0xFF17160F;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(WgTunnelPlugin.class);
         super.onCreate(savedInstanceState);
         wgManager = new WgTunnelManager(this);
         buildOverlay();
-        // The WebView's disk cache can keep serving old CSS/JS from the live
-        // broker pages across app opens even after the server redeploys with
-        // fixes (hit this exact class of bug before in a sibling project) --
-        // clear it on every cold start so the dashboard is always fetched fresh.
-        if (getBridge() != null && getBridge().getWebView() != null) {
-            getBridge().getWebView().clearCache(true);
+
+        WebView webView = (getBridge() != null) ? getBridge().getWebView() : null;
+        if (webView != null) {
+            // The WebView's disk cache can keep serving old CSS/JS from the live
+            // broker pages across app opens even after the server redeploys with
+            // fixes (hit this exact class of bug before in a sibling project) --
+            // clear it on every cold start so the dashboard is always fetched fresh.
+            webView.clearCache(true);
+            // Kill the rubber-band overscroll glow/stretch when scrolling past
+            // the top (the "pulls everything down" effect).
+            webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            // Bridge the (remote) broker pages to native app actions. The pages
+            // feature-detect window.SshBrokerNative, so this is a no-op on the
+            // plain website.
+            webView.addJavascriptInterface(new WebBridge(), "SshBrokerNative");
+        }
+
+        applySystemBars();
+    }
+
+    /** Colour the status + navigation bars to match the app's dark top chrome. */
+    private void applySystemBars() {
+        Window w = getWindow();
+        w.setStatusBarColor(SYSTEM_BAR_DARK);
+        w.setNavigationBarColor(SYSTEM_BAR_DARK);
+        View decor = w.getDecorView();
+        WindowInsetsControllerCompat c = WindowCompat.getInsetsController(w, decor);
+        if (c != null) {
+            // false = light icons, for our dark bars
+            c.setAppearanceLightStatusBars(false);
+            c.setAppearanceLightNavigationBars(false);
+        }
+    }
+
+    /** JS-callable bridge exposed to the WebView as window.SshBrokerNative. */
+    private class WebBridge {
+        @JavascriptInterface
+        public void exitAndDisconnect() {
+            runOnUiThread(() -> {
+                monitoring = false;
+                try { wgManager.disconnect(); } catch (Exception ignored) {}
+                finishAndRemoveTask();
+            });
         }
     }
 

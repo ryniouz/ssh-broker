@@ -60,5 +60,14 @@
   <div class="keybox"><code id="adm">{{ admin_token }}</code><button type="button" class="copy" onclick="copyText('adm', this)">Copy</button></div>
 </section>
 {% endif %}
+
+<section class="card">
+  <h2>About</h2>
+  <dl>
+    <dt>Version</dt><dd>{{ APP_VERSION }}</dd>
+    <dt>Broker host</dt><dd>{{ status.host if status and status.host else '—' }}</dd>
+    <dt>Source</dt><dd><a href="https://github.com/ryniouz/ssh-broker">github.com/ryniouz/ssh-broker</a></dd>
+  </dl>
+</section>
 </div>
 {% endblock %}

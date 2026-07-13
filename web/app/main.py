@@ -33,7 +33,7 @@ API_BASE = os.environ.get("WEB_API_BASE", "http://127.0.0.1:8000")
 ADMIN_TOKEN = os.environ.get("WEB_ADMIN_TOKEN", "")
 SESSION_SECRET = os.environ.get("WEB_SESSION_SECRET", "change-me-in-env")
 DB_PATH = os.environ.get("WEB_DB_PATH", "/data/web.db")
-APP_VERSION = "1.3.2"
+APP_VERSION = "1.3.3"
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -96,9 +96,73 @@ def _pretty(obj) -> str:
     return json.dumps(obj, indent=2)
 
 
+def _fmttime(ts):
+    """Just the clock time (local tz) — used inside cards where the row's own
+    'x ago' already conveys recency, so the full date would be noise."""
+    if not ts:
+        return ""
+    return datetime.fromtimestamp(float(ts), tz=DISPLAY_TZ).strftime("%H:%M:%S")
+
+
+def _fmtdetail(detail):
+    """Log detail is stored as a JSON string for dict payloads and a plain
+    string otherwise. Render it as compact, readable text rather than raw JSON
+    braces so the card stays scannable."""
+    if detail in (None, "", "null"):
+        return ""
+    obj = detail
+    if isinstance(detail, str):
+        stripped = detail.strip()
+        if stripped[:1] in "{[":
+            try:
+                obj = json.loads(stripped)
+            except Exception:  # noqa: BLE001
+                return detail
+        else:
+            return detail
+    if isinstance(obj, dict):
+        return "  ".join(f"{k}: {v}" for k, v in obj.items())
+    return str(obj)
+
+
+def group_logs(rows):
+    """Collapse consecutive entries that are the same event (plugin+level+
+    action) into one card with a count and a time span. A page of logs is
+    mostly the same few repeated calls (a poller hitting /metrics, say); one
+    card that says 'metrics x40, 10:01-10:07' reads far better on a phone than
+    40 identical single-line table rows."""
+    groups = []
+    for r in rows:
+        r = dict(r)
+        key = (r.get("plugin"), r.get("level"), r.get("action"))
+        if groups and groups[-1]["_key"] == key:
+            g = groups[-1]
+            g["count"] += 1
+            g["first_ts"] = r.get("ts")  # rows arrive newest-first, so this walks back in time
+            # keep the newest non-empty detail/ip as representative
+            if not g.get("detail") and _fmtdetail(r.get("detail")):
+                g["detail"] = _fmtdetail(r.get("detail"))
+            if not g.get("ip") and r.get("ip"):
+                g["ip"] = r.get("ip")
+        else:
+            groups.append({
+                "_key": key,
+                "plugin": r.get("plugin"),
+                "level": r.get("level"),
+                "action": r.get("action"),
+                "ip": r.get("ip"),
+                "detail": _fmtdetail(r.get("detail")),
+                "last_ts": r.get("ts"),
+                "first_ts": r.get("ts"),
+                "count": 1,
+            })
+    return groups
+
+
 templates.env.filters["fromjson"] = _fromjson
 templates.env.filters["ago"] = _ago
 templates.env.filters["fmtts"] = _fmtts
+templates.env.filters["fmttime"] = _fmttime
 templates.env.filters["recent"] = _recent
 templates.env.filters["pretty"] = _pretty
 templates.env.globals["APP_VERSION"] = APP_VERSION
@@ -456,7 +520,7 @@ async def logs_view(request: Request, level: str = "", plugin: str = ""):
         err = str(e)
     return templates.TemplateResponse("logs.html", {
         "request": request, "user": current_user(request), "is_admin": is_admin(request),
-        "rows": rows, "error": err, "level": level, "plugin": plugin,
+        "log_groups": group_logs(rows), "log_count": len(rows), "error": err, "level": level, "plugin": plugin,
     })
 
 
@@ -548,7 +612,8 @@ async def plugin_detail(request: Request, name: str, doc_err: str = "", doc_ok: 
     doc = get_doc(name)
     doc_html = _md.markdown(doc["content"], extensions=["tables", "fenced_code"]) if doc else None
     return templates.TemplateResponse("plugin_detail.html",
-        _admin_ctx(request, p=p, error=None, logs=logs, usage=plugin_usage(p, "<PLUGIN_API_KEY>"),
+        _admin_ctx(request, p=p, error=None, log_groups=group_logs(logs), log_count=len(logs),
+                   usage=plugin_usage(p, "<PLUGIN_API_KEY>"),
                    doc=doc, doc_html=doc_html, doc_err=doc_err or None, doc_ok=doc_ok or None))
 
 

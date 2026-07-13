@@ -9,23 +9,36 @@ when you're away from home.
 ## How it behaves
 1. **Splash** (dark, terminal-green logo) on launch.
 2. **Connectivity gate**, in order:
-   - Probes the broker directly on the home LAN (fastest path when you're
-     actually home).
+   - **Network-aware start (v1.3.3):** if you're on the home Wi-Fi
+     (`Lucas Network`) — or the app can't identify the network — it tries the
+     broker directly on the LAN first. On cellular or any *other* Wi-Fi the LAN
+     is unreachable by definition, so it skips straight to the VPN.
+   - Direct LAN probe (with retries) when applicable.
    - Not reachable → brings up the built-in **WireGuard tunnel** (system VPN
-     consent prompt the first time), shows **"Authorizing connection…"**,
-     then re-probes the broker through the tunnel.
+     consent prompt the first time), shows **"Authorizing connection…"** with a
+     **Cancel** option, then re-probes the broker through the tunnel.
    - Tunnel also can't connect (no config yet, or it's no longer valid) → asks
      you to **choose a WireGuard config file**, validates and saves it, then
      retries.
    - Still nothing → a clean **"You're not on the home network"** screen with
      a retry button, instead of a browser error.
 3. Once connected, login and everything else are served by the broker's own
-   web UI.
+   web UI. An **"Exit & VPN off"** item in the menu closes the app *and* tears
+   down the device VPN so it doesn't linger (the tunnel is device-wide).
 4. **While using the app**, a native background check (not the JS above —
    that only runs once at launch) watches for the connection dropping. If it
    does, the same **"Authorizing connection…"** look appears over whatever
    page you're on, and it tries a silent VPN reconnect (only if consent was
    already granted) before handing control back.
+
+Native niceties (v1.3.3): the system status/navigation bars are coloured to
+match the app's dark top chrome, the WebView's rubber-band overscroll bounce is
+disabled, and the app clears its WebView cache on every launch.
+
+The home Wi-Fi SSID name is read via `ACCESS_FINE_LOCATION` (Android requires
+location permission to see the SSID). If you decline it, the app degrades
+gracefully to transport-only logic: any Wi-Fi → try LAN then VPN; cellular →
+VPN.
 
 ## Layout
 ```

@@ -13,7 +13,7 @@
 <header class="topnav">
   <a href="/" class="brand">
     <img src="/static/logo.png?v={{ APP_VERSION }}" alt="">
-    <span class="name">SSH Broker</span><span class="ver">v{{ APP_VERSION }}</span>
+    <span class="name">SSH Broker</span>
   </a>
   <button type="button" class="nav-toggle" onclick="toggleMenu()" aria-label="Toggle menu" aria-expanded="false">
     <svg class="ico-burger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
@@ -31,6 +31,7 @@
     {% include "_theme_toggle.html" %}
     <span class="whoami">{{ user.username }}{% if is_admin %} · admin{% endif %}</span>
     <a href="/logout" class="signout">Sign out</a>
+    <a href="#" class="signout exit-app" id="exitApp" style="display:none" onclick="exitApp();return false;">Exit &amp; VPN off</a>
   </nav>
 </header>
 
@@ -46,7 +47,17 @@
     if(a.getAttribute('href')===location.pathname) a.classList.add('active');
   });
   updateThemeLabel();
+  // The native Android app injects window.SshBrokerNative; the "Exit & VPN off"
+  // action only makes sense there (turns off the device VPN and closes the app),
+  // so it's hidden on the plain website where the bridge doesn't exist.
+  if (window.SshBrokerNative && window.SshBrokerNative.exitAndDisconnect) {
+    var ex = document.getElementById('exitApp');
+    if (ex) ex.style.display = '';
+  }
 })();
+function exitApp(){
+  try { window.SshBrokerNative.exitAndDisconnect(); } catch(e){}
+}
 function toggleMenu(){
   var panel = document.getElementById('navPanel');
   var btn = document.querySelector('.nav-toggle');

@@ -1,4 +1,4 @@
-# SSH Broker — Operator Manual (v1.3.2)
+# SSH Broker — Operator Manual (v1.3.3)
 
 One persistent SSH connection to the host, shared by all your apps through a
 small capability-gated API. Apps never hold SSH creds — they hold a scoped API
