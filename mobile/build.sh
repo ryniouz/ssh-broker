@@ -20,6 +20,10 @@ JAVA_BIN="$(command -v java)"; export JAVA_HOME="${JAVA_HOME:-$(dirname "$(dirna
 echo "==> build dir: $BUILD_DIR   version $VERSION_NAME ($VERSION_CODE)"
 rm -rf "$BUILD_DIR"; mkdir -p "$BUILD_DIR"
 cp -r "$HERE"/{package.json,capacitor.config.json,www,resources,scripts,android-res,native-src} "$BUILD_DIR"/
+# Reuse the committed signing key (gitignored, kept in mobile/) so every build
+# has the SAME signature and installs as an upgrade. Without this the keystore
+# step below would mint a fresh key -> different signature -> "app not installed".
+[ -f "$HERE/sshbroker-release.keystore" ] && cp "$HERE/sshbroker-release.keystore" "$BUILD_DIR"/
 cd "$BUILD_DIR"
 
 echo "==> npm install"; npm install --no-audit --no-fund
