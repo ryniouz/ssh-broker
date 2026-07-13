@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 
 import com.wireguard.android.backend.GoBackend;
 import com.wireguard.android.backend.Tunnel;
+import com.wireguard.config.BadConfigException;
 import com.wireguard.config.Config;
 
 import java.io.ByteArrayInputStream;
@@ -66,7 +67,7 @@ public class WgTunnelManager {
     }
 
     /** Validate and persist a user-supplied config as the one to use from now on. */
-    public void saveUserConfig(String text) throws IOException {
+    public void saveUserConfig(String text) throws IOException, BadConfigException {
         // Config.parse validates the text; it throws if malformed, before we ever write it to disk.
         Config.parse(new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
         File f = new File(context.getFilesDir(), USER_CONFIG_FILENAME);
@@ -75,7 +76,7 @@ public class WgTunnelManager {
         }
     }
 
-    private Config loadConfig() throws IOException {
+    private Config loadConfig() throws IOException, BadConfigException {
         File user = new File(context.getFilesDir(), USER_CONFIG_FILENAME);
         if (user.exists()) {
             try (FileInputStream in = new FileInputStream(user)) {

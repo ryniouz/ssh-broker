@@ -91,14 +91,14 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
         monitoring = true;
         handler.postDelayed(healthCheck, CHECK_INTERVAL_MS);
     }
 
     @Override
-    protected void onPause() {
+    public void onPause() {
         super.onPause();
         monitoring = false;
         handler.removeCallbacks(healthCheck);
