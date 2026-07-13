@@ -25,11 +25,20 @@ echo "==> data dir:   ${DATA_DIR}"
 echo "==> network:    ${NET_NAME}  api=${API_IP} web=${WEB_IP}"
 mkdir -p "${DATA_DIR}/api" "${DATA_DIR}/web" "${DATA_DIR}/secrets"
 
+# Containers run non-root (uid 10001 = api, 10002 = web). Bind mounts keep host
+# ownership, so make the data dirs writable by those UIDs or the apps can't
+# create their sqlite files.
+chown -R 10001:10001 "${DATA_DIR}/api"
+chown -R 10002:10002 "${DATA_DIR}/web"
+
 if [ ! -f "${SSH_KEY_FILE}" ]; then
   echo "!! SSH key not found at ${SSH_KEY_FILE}"
   echo "   Run deploy/first-time-setup.sh first to generate + install it."
   exit 1
 fi
+# the api user must be able to read its mounted private key
+chown 10001:10001 "${SSH_KEY_FILE}"
+chmod 600 "${SSH_KEY_FILE}"
 
 echo "==> building images"
 docker build -f docker/api.Dockerfile -t ssh-broker-api:1.0.0 .
