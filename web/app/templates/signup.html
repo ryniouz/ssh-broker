@@ -1,14 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Create admin — SSH Broker{% endblock %}
+{% block title %}Sign up — SSH Broker{% endblock %}
 {% block body %}
 <div class="auth-card">
   <h1>◆ SSH Broker</h1>
-  <p class="sub">Create the first admin account</p>
+  {% if first %}
+    <p class="sub">Create the first admin account</p>
+  {% else %}
+    <p class="sub">Request an account</p>
+  {% endif %}
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
   <form method="post" action="/signup">
     <label>Username<input name="username" autocomplete="username" required></label>
     <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>
-    <button type="submit">Create admin</button>
+    <button type="submit">{{ "Create admin" if first else "Request access" }}</button>
   </form>
-  <p class="hint">This form is only available until the first admin exists.</p>
+  {% if first %}
+    <p class="hint">The first account becomes the admin. All later sign-ups need admin approval.</p>
+  {% else %}
+    <p class="hint">Already have an account? <a href="/login">Sign in</a></p>
+  {% endif %}
 </div>
 {% endblock %}

@@ -13,7 +13,7 @@ from . import db, __version__
 from .config import settings
 from .ssh_manager import manager
 from .plugin_loader import sync_from_files
-from .routers import exec as exec_router, metrics, plugins, logs
+from .routers import exec as exec_router, metrics, plugins, logs, system
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("broker")
@@ -38,6 +38,7 @@ app.include_router(metrics.router)
 app.include_router(exec_router.router)
 app.include_router(plugins.router)
 app.include_router(logs.router)
+app.include_router(system.router)
 
 
 @app.get("/health", tags=["system"])

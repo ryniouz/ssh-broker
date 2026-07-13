@@ -9,12 +9,16 @@
 <body>
 {% if user %}
 <header class="topbar">
-  <div class="brand">◆ SSH&nbsp;Broker <span class="ver">v1.0.0</span></div>
+  <div class="brand">◆ SSH&nbsp;Broker <span class="ver">v1.1.0</span></div>
   <nav>
     <a href="/">Dashboard</a>
     <a href="/logs">Logs</a>
     <a href="/manual">Manual</a>
-    <span class="who">{{ user }}</span>
+    {% if is_admin %}
+      <a href="/users">Users{% if pending %} <span class="badge">{{ pending }}</span>{% endif %}</a>
+      <a href="/settings">Settings</a>
+    {% endif %}
+    <span class="who">{{ user.username }}{% if is_admin %} · admin{% endif %}</span>
     <a href="/logout" class="logout">Sign out</a>
   </nav>
 </header>

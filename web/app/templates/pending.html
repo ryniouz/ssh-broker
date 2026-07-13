@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Pending approval — SSH Broker{% endblock %}
+{% block body %}
+<div class="auth-card">
+  <h1>◆ SSH Broker</h1>
+  <p class="sub">Account requested</p>
+  <div class="notice">
+    Thanks, <strong>{{ username }}</strong>. Your account has been created and is
+    <strong>pending admin approval</strong>. You'll be able to sign in once an
+    admin approves it under <em>Users</em>.
+  </div>
+  <p class="hint"><a href="/login">Back to sign in</a></p>
+</div>
+{% endblock %}

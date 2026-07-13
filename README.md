@@ -1,4 +1,4 @@
-# SSH Broker — v1.0.0
+# SSH Broker — v1.1.0
 
 A single-connection SSH **broker / proxy**. Instead of every app holding its own
 SSH credentials to your server, they all talk to one small API. The broker keeps
@@ -7,18 +7,22 @@ request over it — capability-gated, rate-limited, and fully audit-logged.
 
 ```
                  ┌───────────────────────────────────────────────┐
-   App A  ─┐     │  API container  (10.11.20.1:8000)              │
+   App A  ─┐     │  API container  (10.11.15.10:8000)             │
    App B  ─┼──►  │  ┌─────────────┐   one persistent SSH conn     │      ┌──────────┐
    App C  ─┘     │  │ plugin auth │──► multiplexed channels ──────┼────► │  Host    │
-                 │  │ + rate limit│    + SFTP + metrics poller     │  ssh │ 10.10.2.3│
+                 │  │ + rate limit│    + SFTP + metrics poller     │  ssh │  (target)│
    Admin ──────► │  └─────────────┘                                │      └──────────┘
-     (browser)   │  Web container  (10.11.20.2:8080) ── login, plugins, logs
+     (browser)   │  Web container  (10.11.15.11:8080) ── login, plugins, logs
                  └───────────────────────────────────────────────┘
 ```
 
-- **API** — `10.11.20.1:8000` — the "mean structure". Holds the SSH key, exposes the plugin surface.
-- **Web** — `10.11.20.2:8080` — admin dashboard: sign-up/login, plugins, host status, logs/errors.
-- **Host** — `10.10.2.3` — the server being managed (your unraid box).
+- **API** — `10.11.15.10:8000` — the "mean structure". Holds the SSH key, exposes the plugin surface.
+- **Web** — `10.11.15.11:8080` — admin dashboard: sign-up/approval, plugins, host status, logs, and **Acquire SSH key**.
+- **Host** — the server being managed. Its login is entered **once** through the UI to bootstrap key auth; nothing is stored in this repo.
+
+New in v1.1: **no SSH key or server credential lives in the repo or on the
+server beforehand.** The admin acquires the key at runtime via the web UI, and
+new sign-ups require admin approval.
 
 Everything runs in Docker on a macvlan network (`br1`) with static IPs. No
 `docker-compose` required on the server — deployment is plain `docker run`.
@@ -65,11 +69,11 @@ ssh-broker/
 │   │   ├── auth.py          # api-key auth, capability checks, rate limit
 │   │   ├── plugin_loader.py # load plugins from yaml / register at runtime
 │   │   ├── db.py            # sqlite: users, plugins, logs
-│   │   └── routers/         # metrics, exec, plugins, logs
+│   │   └── routers/         # metrics, exec, plugins, logs, system (acquire)
 │   └── plugins/             # declarative plugin definitions (yaml)
 ├── web/                     # admin dashboard (FastAPI + Jinja)
 ├── docker/                  # api.Dockerfile, web.Dockerfile
-├── deploy/                  # deploy.sh, first-time-setup.sh, broker.env.example
+├── deploy/                  # deploy.sh, broker.env.example
 ├── cli/broker-cli.py        # stdlib-only client for other projects
 ├── PLUGIN_SPEC.md           # how to write a plugin
 └── README.md                # this file
@@ -92,43 +96,30 @@ plugins ship in `api/plugins/`: `host-metrics` (read-only) and
 
 ## 4. First-time deployment (unraid) <a name="4-deploy"></a>
 
-> Runs on the unraid host. The containers manage the host they run on, so the
-> broker SSHes to the host's own LAN IP (`10.10.2.3`).
+> No SSH key or server credential is needed on the server up front — the admin
+> acquires it later through the web UI.
 
 **Step 1 — get the code onto the server.** Clone it somewhere persistent:
 
 ```bash
 mkdir -p /mnt/user/appdata && cd /mnt/user/appdata
-git clone https://github.com/<you>/ssh-broker.git
+git clone https://github.com/ryniouz/ssh-broker.git
 cd ssh-broker
 ```
 
-**Step 2 — configure.** Copy the env template and fill it in:
+**Step 2 — configure.** Copy the env template and generate two secrets:
 
 ```bash
 cp deploy/broker.env.example deploy/broker.env
-# generate two secrets:
 echo "BROKER_ADMIN_TOKEN=$(openssl rand -hex 32)" >> deploy/broker.env
 echo "WEB_SESSION_SECRET=$(openssl rand -hex 32)" >> deploy/broker.env
-nano deploy/broker.env      # confirm IPs / NET_NAME / host
+nano deploy/broker.env      # confirm IPs / NET_NAME / DATA_DIR
 ```
 
-**Step 3 — create the macvlan network** (skip if `br1` already exists on unraid):
+**Step 3 — create the macvlan network** (skip if `br1` already exists on unraid).
+Assign IPs inside br1's real subnet (here `10.11.0.0/20`).
 
-```bash
-docker network create -d macvlan \
-  --subnet 10.11.20.0/24 -o parent=br1 mcvland 2>/dev/null || true
-# if you use unraid's built-in br1, set NET_NAME=br1 in broker.env instead
-```
-
-**Step 4 — generate + authorise the broker's SSH key** (uses the root password
-**once**, then switches to key auth forever):
-
-```bash
-./deploy/first-time-setup.sh
-```
-
-**Step 5 — build & launch both containers:**
+**Step 4 — build & launch both containers:**
 
 ```bash
 ./deploy/deploy.sh
@@ -137,13 +128,18 @@ docker network create -d macvlan \
 You should see:
 
 ```
-API : http://10.11.20.1:8000/health
-Web : http://10.11.20.2:8080/
+API : http://10.11.15.10:8000/health
+Web : http://10.11.15.11:8080/
 ```
 
-**Step 6 — create your admin account.** Open `http://10.11.20.2:8080/` in a
-browser. The first visit shows the **sign-up** form (only available until one
-admin exists). Create it, and you're in.
+**Step 5 — create your admin account.** Open `http://10.11.15.11:8080/`. The
+first sign-up becomes the **admin** (auto-approved). Later sign-ups are pending
+until the admin approves them under **Users**.
+
+**Step 6 — acquire the SSH key.** Go to **Settings → Acquire SSH key**, enter the
+target host + username + password **once**. The broker installs its own generated
+key on the host and discards the password. The dashboard then shows
+**Broker → Host: CONNECTED**.
 
 ---
 
@@ -171,7 +167,7 @@ cat > cloud-code.json <<'JSON'
 JSON
 
 BROKER_ADMIN_TOKEN=<token> python cli/broker-cli.py \
-  --api http://10.11.20.1:8000 register --file cloud-code.json
+  --api http://10.11.15.10:8000 register --file cloud-code.json
 # -> { "status": "created", "api_key": "bpk_..." }   # save this key
 ```
 
@@ -187,8 +183,8 @@ python cli/broker-cli.py upload ./compose.yml /mnt/user/appdata/app/compose.yml
 **Or raw HTTP:**
 
 ```bash
-curl -s http://10.11.20.1:8000/metrics -H "X-API-Key: bpk_..."
-curl -s http://10.11.20.1:8000/exec/run -H "X-API-Key: bpk_..." \
+curl -s http://10.11.15.10:8000/metrics -H "X-API-Key: bpk_..."
+curl -s http://10.11.15.10:8000/exec/run -H "X-API-Key: bpk_..." \
   -H "Content-Type: application/json" \
   -d '{"command":"docker_pull","params":{"image":"ghcr.io/me/app:latest"}}'
 ```
@@ -197,19 +193,24 @@ curl -s http://10.11.20.1:8000/exec/run -H "X-API-Key: bpk_..." \
 
 ## 6. The web dashboard <a name="6-web"></a>
 
-`http://10.11.20.2:8080/`
+`http://10.11.15.11:8080/`
 
-- **Sign up** (first run) → creates the single admin. **Login** thereafter.
-- **Dashboard** — broker↔host connection status, and every plugin with its
-  capabilities, rate limit, last-seen time, and an enable/disable toggle.
+- **Sign up / approval** — first sign-up is the admin; later sign-ups are
+  **pending** until the admin approves them under **Users**.
+- **Dashboard** — broker↔host status and every plugin (capabilities, rate limit,
+  last-seen, enable/disable). Shows a banner when accounts await approval.
+- **Users** (admin) — approve / deny / remove accounts.
+- **Settings** (admin) — **Acquire SSH key**: enter the host login once to
+  bootstrap key auth; the password is never stored.
 - **Logs** — the full audit trail, filterable by level (`info`/`error`/`denied`)
-  and plugin. Denied auth, rate-limit hits, failed commands all show here.
+  and plugin.
+- **Manual** — this document, rendered in-app.
 
 ---
 
 ## 7. API reference <a name="7-api"></a>
 
-Interactive docs: `http://10.11.20.1:8000/docs`
+Interactive docs: `http://10.11.15.10:8000/docs`
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
@@ -221,17 +222,19 @@ Interactive docs: `http://10.11.20.1:8000/docs`
 | POST | `/plugins` | `X-Admin-Token` | create/update a plugin |
 | POST | `/plugins/{name}/enable` \| `/disable` | `X-Admin-Token` | toggle |
 | GET  | `/logs` | `X-Admin-Token` | audit log |
+| POST | `/ssh/acquire` | `X-Admin-Token` | one-time key bootstrap (host/user/password) |
+| GET  | `/ssh/status` | `X-Admin-Token` | SSH target + connection status |
 
 ---
 
 ## 8. Updating / redeploying <a name="8-update"></a>
 
 From your dev machine: commit and push. On the server, pull and re-run deploy —
-it rebuilds the images and swaps the containers (data + key survive in the
+it rebuilds the images and swaps the containers (data, users, keys survive in the
 mounted volume):
 
 ```bash
-ssh root@10.10.2.3 'cd /mnt/user/appdata/ssh-broker && git pull && ./deploy/deploy.sh'
+ssh root@<host> 'cd /mnt/user/appdata/ssh-broker && git pull && ./deploy/deploy.sh'
 ```
 
 ---
@@ -248,6 +251,7 @@ ssh root@10.10.2.3 'cd /mnt/user/appdata/ssh-broker && git pull && ./deploy/depl
   without a reverse proxy + TLS + stronger auth in front.
 - **Metrics are cached** (polled every few seconds) — values can be a few
   seconds stale by design, which is what keeps host load low.
-- The root password is only used once by `first-time-setup.sh` to install the
-  key. Rotate it afterwards; nothing stores it.
+- The host password is only used once, at **Acquire SSH key** time, to install
+  the broker's public key. It is never written to disk or logs. Rotate it
+  afterwards if you like; the broker uses key auth from then on.
 ```

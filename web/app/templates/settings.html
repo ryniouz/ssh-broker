@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Settings — SSH Broker{% endblock %}
+{% block body %}
+<section class="card">
+  <h2>Broker SSH connection</h2>
+  {% if status and not status.error %}
+    <div class="stat {{ 'ok' if status.configured and status.connected else ('warn' if status.configured else 'bad') }}">
+      {% if status.configured and status.connected %}CONNECTED
+      {% elif status.configured %}CONFIGURED (reconnecting…)
+      {% else %}NOT CONFIGURED{% endif %}
+    </div>
+    <dl>
+      <dt>Target</dt><dd>{{ status.target or '—' }}</dd>
+      {% if status.last_error %}<dt>Last error</dt><dd class="warn">{{ status.last_error }}</dd>{% endif %}
+    </dl>
+  {% elif status and status.error %}
+    <div class="err">Broker API unreachable: {{ status.error }}</div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Acquire SSH key</h2>
+  <p class="small">
+    Enter the target host's login <strong>once</strong>. The broker uses it to install its own
+    generated key on the host, then discards the password — it is <strong>never stored</strong>.
+    After this, the broker connects with key auth only.
+  </p>
+  {% if result %}<div class="okbox">✓ Key acquired for <span class="mono">{{ result.host }}</span> ({{ result.user }}). Verification: <span class="mono">{{ result.verify }}</span></div>{% endif %}
+  {% if error %}<div class="err">Acquire failed: {{ error }}</div>{% endif %}
+  <form method="post" action="/settings/acquire" class="acq"
+        onsubmit="return confirm('Install the broker key on this host now?')">
+    <label>Host / IP<input name="host" placeholder="10.10.2.3" required></label>
+    <label>Port<input name="port" type="number" value="22" required></label>
+    <label>Username<input name="username" placeholder="root" autocomplete="off" required></label>
+    <label>Password<input name="password" type="password" autocomplete="off" required></label>
+    <button type="submit">Acquire key</button>
+  </form>
+  <p class="hint">Admin only. The password is sent once to the broker over the internal network and is not written to disk or logs.</p>
+</section>
+{% endblock %}

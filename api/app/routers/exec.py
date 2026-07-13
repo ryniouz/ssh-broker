@@ -18,6 +18,8 @@ class RunRequest(BaseModel):
 
 @router.post("/run")
 async def run(req: RunRequest, plugin: dict = Depends(auth.require_plugin)):
+    if not manager.is_configured():
+        raise HTTPException(503, "broker SSH target not configured — an admin must acquire a key first")
     spec = auth.command_spec(plugin, req.command)
     if spec is None:
         db.audit("denied", "exec", plugin=plugin["name"], detail=f"command '{req.command}' not granted")
@@ -57,6 +59,8 @@ async def upload(req: UploadRequest, plugin: dict = Depends(auth.require_plugin)
     up = plugin["capabilities"].get("upload")
     if not up:
         raise HTTPException(403, "upload not permitted for this plugin")
+    if not manager.is_configured():
+        raise HTTPException(503, "broker SSH target not configured — an admin must acquire a key first")
     allowed_prefix = up.get("path_prefix", "/tmp/")
     if not req.remote_path.startswith(allowed_prefix):
         db.audit("denied", "upload", plugin=plugin["name"], detail=req.remote_path)

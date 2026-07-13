@@ -69,6 +69,20 @@ tr.lvl-denied{background:rgba(210,153,34,.05)}
 .err{background:rgba(248,81,73,.12);border:1px solid #5a2321;color:#ffb4ae;
   padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;font-size:.85rem}
 
+.badge{display:inline-block;min-width:1.1rem;text-align:center;background:var(--bad);
+  color:#fff;border-radius:999px;font-size:.7rem;padding:0 .35rem;margin-left:.15rem}
+.notice{background:rgba(88,166,255,.1);border:1px solid #234; color:var(--txt);
+  padding:.7rem .9rem;border-radius:10px;margin-bottom:1rem;font-size:.9rem}
+.okbox{background:rgba(63,185,80,.12);border:1px solid #1f4d2b;color:#8ce39a;
+  padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;font-size:.88rem}
+.mini.approve{background:#173d24;color:#7ee787;border-color:#1f4d2b}
+.mini.deny{background:#3d1f1e;color:#ff9d97;border-color:#5a2321;margin-left:.3rem}
+.acq{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;max-width:520px;margin-top:.6rem}
+.acq label{display:block;font-size:.82rem;color:var(--dim)}
+.acq input{display:block;width:100%;margin-top:.3rem;background:var(--panel2);
+  color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:.5rem .65rem}
+.acq button{grid-column:1 / -1;justify-self:start;padding:.55rem 1.2rem}
+
 .doc{line-height:1.6}
 .doc h1{font-size:1.5rem;margin:.2rem 0 1rem}
 .doc h2{font-size:1.1rem;margin:1.6rem 0 .6rem;border-bottom:1px solid var(--line);padding-bottom:.3rem}

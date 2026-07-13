@@ -29,7 +29,7 @@ import sys
 import urllib.request
 import urllib.error
 
-DEFAULT_API = os.environ.get("BROKER_API_BASE", "http://10.11.20.1:8000")
+DEFAULT_API = os.environ.get("BROKER_API_BASE", "http://10.11.15.10:8000")
 
 
 def _req(method, base, path, headers=None, body=None):

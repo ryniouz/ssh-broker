@@ -1,8 +1,9 @@
 """Central configuration, loaded from environment variables.
 
-Nothing secret is hardcoded here. The SSH target credentials and paths all
-come from the environment (see .env.example). On the server these are passed
-via `docker run --env-file` or individual `-e` flags.
+Nothing secret is hardcoded here, and (as of v1.1) the SSH target is NOT
+configured via env at all — an admin acquires it at runtime through the web UI
+("Acquire SSH key"), which writes the key + target into the data dir. The env
+vars below only tune behaviour.
 """
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,30 +12,24 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BROKER_", env_file=".env", extra="ignore")
 
-    # --- SSH target (the "unraid" production box the broker manages) ---
-    ssh_host: str = "10.10.2.3"
-    ssh_port: int = 22
-    ssh_user: str = "root"
-    # Path to the private key INSIDE the container (mounted as a Docker secret/volume).
-    ssh_key_path: str = "/run/secrets/broker_ssh_key"
+    # --- SSH tuning (target host/user/key are set at runtime via acquire) ---
+    ssh_port_default: int = 22
+    # Where the broker's private key is stored once acquired. Must be writable.
+    ssh_key_path: str = "/data/broker_ssh_key"
     # Known-hosts pinning. Empty (default) disables host-key verification, which
-    # is acceptable for a LAN-only broker connecting to a known host. To pin,
-    # set BROKER_SSH_KNOWN_HOSTS to a path containing the host's public key.
+    # is acceptable for a LAN-only broker connecting to a known host.
     ssh_known_hosts: str = ""
 
-    # Max concurrent SSH channels multiplexed over the single connection.
     ssh_max_channels: int = 8
-    # Seconds between keepalive pings on the persistent connection.
     ssh_keepalive: int = 15
-    # How often (seconds) the background poller refreshes cached host metrics.
     metrics_poll_interval: int = 5
 
     # --- storage ---
     data_dir: str = "/data"
     plugins_dir: str = "/app/plugins"
 
-    # Shared secret that lets the CLI / web backend manage plugins over the API.
-    # Set via BROKER_ADMIN_TOKEN. Empty means runtime plugin management is disabled.
+    # Shared secret that lets the CLI / web backend manage plugins + acquire the
+    # SSH key over the API. Set via BROKER_ADMIN_TOKEN.
     admin_token: str = ""
 
     @property
@@ -42,8 +37,9 @@ class Settings(BaseSettings):
         return str(Path(self.data_dir) / "broker.db")
 
     @property
-    def log_path(self) -> str:
-        return str(Path(self.data_dir) / "broker.log")
+    def target_path(self) -> str:
+        # persisted SSH target (host/port/user) — never contains a password
+        return str(Path(self.data_dir) / "ssh_target.json")
 
 
 settings = Settings()

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Users — SSH Broker{% endblock %}
+{% block body %}
+<section class="card">
+  <h2>User management</h2>
+  <p class="small">New sign-ups arrive as <span class="pill denied">pending</span> and must be approved here before they can sign in.</p>
+  <table>
+    <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="mono">{{ r.username }}</td>
+        <td>{% if r.is_admin %}<span class="pill on">admin</span>{% else %}user{% endif %}</td>
+        <td>
+          {% if r.status == 'active' %}<span class="pill on">active</span>
+          {% else %}<span class="pill denied">pending</span>{% endif %}
+        </td>
+        <td class="small">{{ r.created_at|ago }}</td>
+        <td>
+          {% if r.username != user.username %}
+            {% if r.status == 'pending' %}
+              <form method="post" action="/users/{{ r.id }}/approve" style="display:inline">
+                <button class="mini approve">Approve</button>
+              </form>
+            {% endif %}
+            <form method="post" action="/users/{{ r.id }}/deny" style="display:inline"
+                  onsubmit="return confirm('Remove user {{ r.username }}?')">
+              <button class="mini deny">{{ 'Deny' if r.status == 'pending' else 'Remove' }}</button>
+            </form>
+          {% else %}<span class="small">(you)</span>{% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="empty">No users.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
