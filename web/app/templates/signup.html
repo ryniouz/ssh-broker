@@ -1,23 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Sign up — SSH Broker{% endblock %}
-{% block body %}
-<div class="auth-card">
-  <h1>◆ SSH Broker</h1>
-  {% if first %}
-    <p class="sub">Create the first admin account</p>
-  {% else %}
-    <p class="sub">Request an account</p>
-  {% endif %}
-  {% if error %}<div class="err">{{ error }}</div>{% endif %}
-  <form method="post" action="/signup">
-    <label>Username<input name="username" autocomplete="username" required></label>
-    <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>
-    <button type="submit">{{ "Create admin" if first else "Request access" }}</button>
-  </form>
-  {% if first %}
-    <p class="hint">The first account becomes the admin. All later sign-ups need admin approval.</p>
-  {% else %}
-    <p class="hint">Already have an account? <a href="/login">Sign in</a></p>
-  {% endif %}
+{% block auth %}
+<div class="auth">
+  <div class="auth-card">
+    <div class="auth-logo"><img src="/static/logo.png" alt=""><span class="name">SSH Broker</span></div>
+    <h1>{{ "Create admin" if first else "Request access" }}</h1>
+    <p class="sub">{{ "The first account runs the broker." if first else "An admin approves new accounts." }}</p>
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    <form method="post" action="/signup">
+      <label>Username<input name="username" autocomplete="username" required></label>
+      <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>
+      <button type="submit">{{ "Create admin" if first else "Request access" }}</button>
+    </form>
+    {% if first %}
+      <p class="hint">The first sign-up becomes the admin. Everyone after needs approval.</p>
+    {% else %}
+      <p class="hint">Already have an account? <a href="/login">Sign in</a></p>
+    {% endif %}
+    <button type="button" class="theme-btn" onclick="toggleTheme()"><span class="theme-ico">☾</span><span class="theme-label">Night</span></button>
+  </div>
 </div>
 {% endblock %}

@@ -1,7 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Manual — SSH Broker{% endblock %}
 {% block body %}
+<div class="page-h"><h1>Manual</h1><p>How the broker works and how to connect apps to it.</p></div>
+
+{% if admin_token %}
+<section class="card">
+  <h2>Admin API key</h2>
+  <p class="small">You're signed in as admin. This key registers plugins and manages the broker over the API.</p>
+  <div class="keybox"><code id="adm-top">{{ admin_token }}</code><button type="button" class="copy" onclick="copyText('adm-top', this)">Copy</button></div>
+</section>
+{% endif %}
+
 <article class="card doc">
   {{ content|safe }}
 </article>
+
+<section class="card">
+  <h2>Instruction for Cloud</h2>
+  <p class="small">Paste this into a cloud/AI agent (e.g. Claude Code). It contains everything needed to register a plugin and drive the broker{% if admin_token %} — the admin key below is filled in{% else %} (ask an admin for the API key){% endif %}.</p>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem">
+    <button type="button" class="copy" onclick="copyText('cloud', this)">Copy all</button>
+  </div>
+  <textarea id="cloud" class="cloud-box" readonly spellcheck="false">{{ cloud_text }}</textarea>
+</section>
 {% endblock %}

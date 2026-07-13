@@ -1,18 +1,31 @@
 {% extends "base.html" %}
 {% block title %}Settings — SSH Broker{% endblock %}
 {% block body %}
+<div class="page-h"><h1>Settings</h1><p>Connect the broker to your host and manage its access.</p></div>
+
 <section class="card">
-  <h2>Broker SSH connection</h2>
+  <h2>Connection</h2>
   {% if status and not status.error %}
-    <div class="stat {{ 'ok' if status.configured and status.connected else ('warn' if status.configured else 'bad') }}">
-      {% if status.configured and status.connected %}CONNECTED
-      {% elif status.configured %}CONFIGURED (reconnecting…)
-      {% else %}NOT CONFIGURED{% endif %}
+    <div class="prompt">
+      <span class="u">ssh&nbsp;</span><span>{{ status.target or 'root@—' }}</span>
+      {% if status.configured and status.connected %}
+        <span class="ok">&nbsp;— connected via {{ status.auth_method or 'key' }} ✓</span>
+      {% elif status.configured %}
+        <span class="cur">&nbsp;— reconnecting…</span>
+      {% else %}
+        <span class="bad">&nbsp;— not configured</span>
+      {% endif %}
     </div>
-    <dl>
-      <dt>Target</dt><dd>{{ status.target or '—' }}</dd>
-      {% if status.last_error %}<dt>Last error</dt><dd class="warn">{{ status.last_error }}</dd>{% endif %}
-    </dl>
+    {% if status.configured %}
+      <dl style="margin-top:.9rem">
+        <dt>Auth</dt><dd>{{ status.auth_method or 'key' }} (no password stored)</dd>
+        {% if status.last_error %}<dt>Last error</dt><dd class="warn">{{ status.last_error }}</dd>{% endif %}
+      </dl>
+      <form method="post" action="/settings/revoke" style="margin-top:.9rem"
+            onsubmit="return confirm('Forget the stored key and disconnect? You can re-acquire anytime.')">
+        <button class="btn-danger">Revoke key &amp; disconnect</button>
+      </form>
+    {% endif %}
   {% elif status and status.error %}
     <div class="err">Broker API unreachable: {{ status.error }}</div>
   {% endif %}
@@ -20,21 +33,30 @@
 
 <section class="card">
   <h2>Acquire SSH key</h2>
-  <p class="small">
-    Enter the target host's login <strong>once</strong>. The broker uses it to install its own
-    generated key on the host, then discards the password — it is <strong>never stored</strong>.
-    After this, the broker connects with key auth only.
-  </p>
-  {% if result %}<div class="okbox">✓ Key acquired for <span class="mono">{{ result.host }}</span> ({{ result.user }}). Verification: <span class="mono">{{ result.verify }}</span></div>{% endif %}
-  {% if error %}<div class="err">Acquire failed: {{ error }}</div>{% endif %}
-  <form method="post" action="/settings/acquire" class="acq"
-        onsubmit="return confirm('Install the broker key on this host now?')">
-    <label>Host / IP<input name="host" placeholder="10.10.2.3" required></label>
-    <label>Port<input name="port" type="number" value="22" required></label>
-    <label>Username<input name="username" placeholder="root" autocomplete="off" required></label>
+  <p class="small">Enter the host login once. <strong>Test login</strong> checks it can reach the host
+    without saving anything. <strong>Acquire</strong> installs the broker's own generated key and then
+    discards the password — it is never stored.</p>
+  {% if test_result %}<div class="okbox">✓ Login works — reached <span class="mono">{{ test_result.hostname or test_result.host }}</span> as {{ test_result.user }}. Nothing stored yet. Hit <strong>Acquire</strong> to finish.</div>{% endif %}
+  {% if result %}<div class="okbox">✓ Key acquired for <span class="mono">{{ result.host }}</span> ({{ result.user }}). The broker is now connected via key.</div>{% endif %}
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
+  <form method="post" action="/settings/acquire" class="form-grid">
+    <label>Host / IP<input name="host" placeholder="10.10.2.3" value="{{ (status.host if status else '') or '' }}" required></label>
+    <label>Port<input name="port" type="number" value="{{ (status.port if status and status.port else 22) }}" required></label>
+    <label>Username<input name="username" placeholder="root" value="{{ (status.user if status else '') or '' }}" autocomplete="off" required></label>
     <label>Password<input name="password" type="password" autocomplete="off" required></label>
-    <button type="submit">Acquire key</button>
+    <div class="actions">
+      <button type="submit" name="intent" value="test" class="btn-ghost">Test login</button>
+      <button type="submit" name="intent" value="acquire"
+              onclick="return confirm('Install the broker key on this host now?')">Acquire key</button>
+    </div>
   </form>
-  <p class="hint">Admin only. The password is sent once to the broker over the internal network and is not written to disk or logs.</p>
 </section>
+
+{% if admin_token %}
+<section class="card">
+  <h2>Admin API key</h2>
+  <p class="small">Use this to register plugins and manage the broker over the API. Treat it like a password.</p>
+  <div class="keybox"><code id="adm">{{ admin_token }}</code><button type="button" class="copy" onclick="copyText('adm', this)">Copy</button></div>
+</section>
+{% endif %}
 {% endblock %}

@@ -1,4 +1,4 @@
-# SSH Broker — Operator Manual (v1.1.0)
+# SSH Broker — Operator Manual (v1.2.1)
 
 One persistent SSH connection to the host, shared by all your apps through a
 small capability-gated API. Apps never hold SSH creds — they hold a scoped API
@@ -20,10 +20,12 @@ repo `README.md` and `PLUGIN_SPEC.md`.
 
 1. Open the web UI. The **first sign-up becomes the admin** (auto-approved).
 2. Go to **Settings → Acquire SSH key**. Enter the target host, username and
-   password **once**. The broker generates its own keypair, installs the public
-   key on the host, stores the private key, and **discards the password** (never
-   saved). From then on it connects with key auth only.
-3. The dashboard should now show **Broker → Host: CONNECTED**.
+   password. **Test login** checks the credentials reach the host and stores
+   nothing; **Acquire** generates the broker's own keypair, installs the public
+   key on the host, and **discards the password** (never saved). From then on it
+   connects with key auth only — the connection line reads *connected via key*.
+3. The dashboard shows **Broker → Host: connected via key ✓**. To disconnect and
+   forget the key, use **Revoke** in Settings.
 
 ## Accounts & approval
 

@@ -134,6 +134,66 @@ async def api_post(path: str, json_body: dict | None = None, timeout: float = 30
         return r
 
 
+def cloud_instructions(admin_token: str | None) -> str:
+    """Self-contained brief for a cloud/AI agent to onboard a plugin + drive the broker."""
+    tok = admin_token or "<ADMIN_API_KEY — ask an admin>"
+    api = API_BASE
+    return f"""SSH BROKER — INSTRUCTIONS FOR A CLOUD / AI AGENT
+=================================================
+You are connecting an app to an SSH Broker. The broker holds ONE SSH connection
+to a host and exposes a small HTTP API. Your app never gets shell access — it
+gets a scoped API key that can read specific metrics and run specific named,
+whitelisted commands.
+
+BASE URL:     {api}
+ADMIN KEY:    {tok}      (header: X-Admin-Token — for registering plugins)
+PLUGIN KEY:   returned once when you register a plugin (header: X-API-Key)
+
+STEP 1 — Register a plugin (once). A "plugin" declares what your app may do.
+  Commands are templates with $param placeholders; each param is regex-checked
+  then shell-quoted. Docker '{{{{.X}}}}' and awk '$8' pass through untouched.
+
+  curl -s -X POST {api}/plugins \\
+    -H "X-Admin-Token: {tok}" -H "Content-Type: application/json" \\
+    -d '{{
+      "name": "my-app",
+      "description": "what my app does",
+      "rate_limit_per_min": 60,
+      "capabilities": {{
+        "metrics": ["cpu","ram","disk"],
+        "commands": {{
+          "docker_pull": {{"template":"docker pull $image","timeout":300,
+            "params":{{"image":{{"pattern":"^[a-zA-Z0-9._/:@-]+$","required":true}}}}}},
+          "docker_ps": {{"template":"docker ps --format '{{{{.Names}}}}\\t{{{{.Status}}}}'","params":{{}}}}
+        }},
+        "upload": {{"path_prefix":"/mnt/user/appdata/"}}
+      }}
+    }}'
+  Response includes "api_key":"bpk_..."  — SAVE IT. It is shown only once.
+
+STEP 2 — Read host metrics (uses the plugin key):
+  curl -s {api}/metrics -H "X-API-Key: bpk_..."
+
+STEP 3 — Run a whitelisted command by NAME (never raw shell):
+  curl -s -X POST {api}/exec/run -H "X-API-Key: bpk_..." \\
+    -H "Content-Type: application/json" \\
+    -d '{{"command":"docker_pull","params":{{"image":"ghcr.io/me/app:latest"}}}}'
+
+STEP 4 — Push a file over SFTP (if your plugin has "upload"):
+  curl -s -X POST {api}/exec/upload -H "X-API-Key: bpk_..." \\
+    -H "Content-Type: application/json" \\
+    -d '{{"remote_path":"/mnt/user/appdata/x/compose.yml","content_base64":"<base64>"}}'
+
+RULES
+  - To add a NEW capability, update the plugin (POST /plugins again with the same
+    name and the fuller capabilities block) using the admin key.
+  - A command not in the plugin's grant returns 403. A bad param returns 400.
+  - If you get 503 "not configured", an admin must acquire the SSH key first
+    (Settings -> Acquire SSH key in the web UI).
+  - Auth: X-Admin-Token manages plugins; X-API-Key is per-app.
+"""
+
+
 # ---- auth routes ---------------------------------------------------------
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_form(request: Request):
@@ -222,11 +282,14 @@ async def logs_view(request: Request, level: str = "", plugin: str = ""):
 async def manual(request: Request):
     if not current_user(request):
         return RedirectResponse("/login", status_code=302)
+    admin = is_admin(request)
     import markdown as _md
     with open(os.path.join(BASE_DIR, "manual.md"), encoding="utf-8") as f:
         html = _md.markdown(f.read(), extensions=["tables", "fenced_code"])
     return templates.TemplateResponse("manual.html", {
-        "request": request, "user": current_user(request), "is_admin": is_admin(request), "content": html,
+        "request": request, "user": current_user(request), "is_admin": admin, "content": html,
+        "admin_token": ADMIN_TOKEN if admin else None,
+        "cloud_text": cloud_instructions(ADMIN_TOKEN if admin else None),
     })
 
 
@@ -258,47 +321,70 @@ async def user_action(request: Request, uid: int, action: str):
 
 
 # ---- admin: settings / acquire SSH key -----------------------------------
+async def _ssh_status():
+    try:
+        return await api_get("/ssh/status")
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)}
+
+
+def _settings_ctx(request, status, **extra):
+    ctx = {
+        "request": request, "user": current_user(request), "is_admin": True,
+        "status": status, "result": None, "test_result": None, "error": None,
+        "admin_token": ADMIN_TOKEN,
+    }
+    ctx.update(extra)
+    return ctx
+
+
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_view(request: Request):
     if not is_admin(request):
         return RedirectResponse("/login", status_code=302)
-    status = None
-    try:
-        status = await api_get("/ssh/status")
-    except Exception as e:  # noqa: BLE001
-        status = {"error": str(e)}
-    return templates.TemplateResponse("settings.html", {
-        "request": request, "user": current_user(request), "is_admin": True,
-        "status": status, "result": None, "error": None,
-    })
+    status = await _ssh_status()
+    return templates.TemplateResponse("settings.html", _settings_ctx(request, status))
 
 
 @app.post("/settings/acquire", response_class=HTMLResponse)
 async def settings_acquire(request: Request, host: str = Form(...), username: str = Form(...),
-                           password: str = Form(...), port: int = Form(22)):
+                           password: str = Form(...), port: int = Form(22), intent: str = Form("acquire")):
     if not is_admin(request):
         return RedirectResponse("/login", status_code=302)
-    result, error = None, None
+    # "test" checks the login can reach the host and stores nothing;
+    # "acquire" installs the broker's key. The password is forwarded once and
+    # never stored by the web layer.
+    endpoint = "/ssh/test" if intent == "test" else "/ssh/acquire"
+    result_key = "test_result" if intent == "test" else "result"
+    out, error = None, None
     try:
-        # the password is forwarded once to the broker API and never stored here
-        r = await api_post("/ssh/acquire",
+        r = await api_post(endpoint,
                            {"host": host, "username": username, "password": password, "port": port},
                            timeout=45)
         if r.status_code == 200:
-            result = r.json()
+            out = r.json()
         else:
             error = r.json().get("detail", r.text)
     except Exception as e:  # noqa: BLE001
         error = str(e)
-    status = None
+    status = await _ssh_status()
+    return templates.TemplateResponse("settings.html",
+        _settings_ctx(request, status, **{result_key: out, "error": error}))
+
+
+@app.post("/settings/revoke", response_class=HTMLResponse)
+async def settings_revoke(request: Request):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    error = None
     try:
-        status = await api_get("/ssh/status")
-    except Exception:  # noqa: BLE001
-        pass
-    return templates.TemplateResponse("settings.html", {
-        "request": request, "user": current_user(request), "is_admin": True,
-        "status": status, "result": result, "error": error,
-    })
+        r = await api_post("/ssh/revoke", timeout=20)
+        if r.status_code != 200:
+            error = r.json().get("detail", r.text)
+    except Exception as e:  # noqa: BLE001
+        error = str(e)
+    status = await _ssh_status()
+    return templates.TemplateResponse("settings.html", _settings_ctx(request, status, error=error))
 
 
 @app.post("/plugins/{name}/{action}")

@@ -39,6 +39,7 @@ class SSHManager:
         self._metrics: dict = {}
         self._metrics_ts: float = 0.0
         self._stop = False
+        self._auth_method: Optional[str] = None  # "key" once connected via key
         self._target: Optional[dict] = None  # {host, port, user}
         self._load_target()
 
@@ -72,6 +73,7 @@ class SSHManager:
         )
         self._connected_since = time.time()
         self._last_error = None
+        self._auth_method = "key"
         return conn
 
     async def connection(self) -> asyncssh.SSHClientConnection:
@@ -103,6 +105,36 @@ class SSHManager:
     async def close(self) -> None:
         self._stop = True
         await self._close_conn()
+
+    # ---- test a login WITHOUT storing anything --------------------------
+    async def test_login(self, host: str, user: str, password: str, port: int = 22) -> dict:
+        """Verify the given credentials can reach the host. Nothing is stored —
+        this only tells the admin the login works before they acquire a key."""
+        async with asyncssh.connect(
+            host=host, port=port, username=user, password=password, known_hosts=None,
+        ) as conn:
+            res = await conn.run("echo OK && hostname", check=False)
+            out = (res.stdout or "").split()
+            hostname = out[-1] if out else ""
+        return {"ok": True, "host": host, "user": user, "hostname": hostname}
+
+    # ---- revoke: forget the key + target --------------------------------
+    async def revoke(self) -> dict:
+        """Disconnect and delete the stored key + target so the broker is
+        unconfigured again. The public key remains in the host's authorized_keys
+        (remove it there manually if you want to fully cut access)."""
+        await self._close_conn()
+        for path in (settings.ssh_key_path, settings.target_path):
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+        self._target = None
+        self._auth_method = None
+        self._connected_since = None
+        self._metrics = {}
+        self._metrics_ts = 0.0
+        return {"ok": True, "configured": False}
 
     # ---- one-time key acquisition ---------------------------------------
     async def acquire(self, host: str, user: str, password: str, port: int = 22) -> dict:
@@ -226,7 +258,11 @@ class SSHManager:
             "configured": self.is_configured(),
             "connected": self._conn is not None and not self._conn.is_closed(),
             "connected_since": self._connected_since,
+            "auth_method": self._auth_method,
             "last_error": self._last_error,
+            "host": self._target["host"] if self._target else None,
+            "user": self._target["user"] if self._target else None,
+            "port": self._target["port"] if self._target else None,
             "target": f"{self._target['user']}@{self._target['host']}:{self._target['port']}" if self._target else None,
         }
 

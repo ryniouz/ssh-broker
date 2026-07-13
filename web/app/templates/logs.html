@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Logs — SSH Broker{% endblock %}
 {% block body %}
+<div class="page-h"><h1>Audit log</h1><p>Every action through the broker — auth, commands, denials, rate limits.</p></div>
 <section class="card">
-  <h2>Audit log</h2>
   <form class="filters" method="get" action="/logs">
     <select name="level">
       <option value="" {{ 'selected' if not level }}>all levels</option>
@@ -11,22 +11,22 @@
       <option value="denied" {{ 'selected' if level=='denied' }}>denied</option>
     </select>
     <input name="plugin" placeholder="plugin name" value="{{ plugin }}">
-    <button>Filter</button>
+    <button class="btn-ghost">Filter</button>
   </form>
   {% if error %}<div class="err">{{ error }}</div>{% endif %}
   <table>
     <thead><tr><th>Time</th><th>Level</th><th>Plugin</th><th>Action</th><th>Detail</th></tr></thead>
     <tbody>
     {% for r in rows %}
-      <tr class="lvl-{{ r.level }}">
+      <tr>
         <td class="mono small">{{ r.ts|fmtts }}</td>
         <td><span class="pill {{ r.level }}">{{ r.level }}</span></td>
-        <td class="mono">{{ r.plugin or '—' }}</td>
-        <td class="mono">{{ r.action }}</td>
+        <td class="mono small">{{ r.plugin or '—' }}</td>
+        <td class="mono small">{{ r.action }}</td>
         <td class="mono small detail">{{ r.detail }}</td>
       </tr>
     {% else %}
-      <tr><td colspan="5" class="empty">No log entries.</td></tr>
+      <tr><td colspan="5" class="empty">No log entries yet.</td></tr>
     {% endfor %}
     </tbody>
   </table>

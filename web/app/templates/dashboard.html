@@ -1,40 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — SSH Broker{% endblock %}
 {% block body %}
-{% if error %}<div class="err">API unreachable: {{ error }}</div>{% endif %}
+<div class="page-h"><h1>Dashboard</h1><p>Broker health and the apps connected to it.</p></div>
+
+{% if error %}<div class="err">Broker API unreachable: {{ error }}</div>{% endif %}
 
 {% if is_admin and pending %}
-  <div class="notice">
-    <strong>{{ pending }}</strong> account{{ 's' if pending > 1 else '' }} awaiting approval.
-    <a href="/users">Review in Users →</a>
+  <div class="notice"><strong>{{ pending }}</strong> account{{ 's' if pending > 1 else '' }} awaiting approval. <a href="/users">Review in Users →</a></div>
+{% endif %}
+
+{% if health %}
+  {% set ssh = health.ssh %}
+  <div class="card">
+    <h2>Broker → Host</h2>
+    <div class="prompt">
+      <span class="u">ssh&nbsp;</span>
+      <span>{{ ssh.target or 'root@—' }}</span>
+      {% if not ssh.configured %}
+        <span class="bad">&nbsp;— not configured</span>
+      {% elif ssh.connected %}
+        <span class="ok">&nbsp;— connected via {{ ssh.auth_method or 'key' }} ✓</span>
+      {% else %}
+        <span class="cur">&nbsp;— reconnecting…</span>
+      {% endif %}
+    </div>
+    {% if not ssh.configured %}
+      <p class="small" style="margin:.7rem 0 0">No SSH key yet.
+        {% if is_admin %}<a href="/settings">Acquire one in Settings →</a>{% else %}Ask an admin to set it up.{% endif %}</p>
+    {% elif ssh.last_error and not ssh.connected %}
+      <p class="small warn" style="margin:.7rem 0 0">{{ ssh.last_error }}</p>
+    {% endif %}
   </div>
 {% endif %}
 
-<section class="grid">
-  <div class="card status">
-    <h2>Broker → Host</h2>
-    {% if health %}
-      {% set ssh = health.ssh %}
-      {% if not ssh.configured %}
-        <div class="stat bad">NOT CONFIGURED</div>
-        <p class="small">No SSH key yet.
-          {% if is_admin %}<a href="/settings">Acquire one in Settings →</a>{% else %}Ask an admin to acquire one.{% endif %}
-        </p>
-      {% else %}
-        <div class="stat {{ 'ok' if ssh.connected else 'warn' }}">{{ 'CONNECTED' if ssh.connected else 'RECONNECTING…' }}</div>
-        <dl>
-          <dt>Target</dt><dd>{{ ssh.target }}</dd>
-          <dt>Version</dt><dd>{{ health.version }}</dd>
-          {% if ssh.last_error %}<dt>Last error</dt><dd class="warn">{{ ssh.last_error }}</dd>{% endif %}
-        </dl>
-      {% endif %}
-    {% else %}
-      <div class="stat bad">UNKNOWN</div>
-    {% endif %}
-  </div>
-</section>
-
-<section class="card">
+<div class="card">
   <h2>Plugins <span class="count">{{ plugins|length }}</span></h2>
   <table>
     <thead><tr><th>Name</th><th>Description</th><th>Capabilities</th><th>Rate</th><th>Last seen</th><th>State</th>{% if is_admin %}<th></th>{% endif %}</tr></thead>
@@ -43,26 +42,23 @@
       {% set caps = p.capabilities|fromjson %}
       <tr>
         <td class="mono">{{ p.name }}</td>
-        <td>{{ p.description }}</td>
+        <td class="small">{{ p.description }}</td>
         <td class="mono small">
           {% if caps.metrics %}metrics: {{ caps.metrics|join(', ') }}<br>{% endif %}
           {% if caps.commands %}cmds: {{ caps.commands.keys()|join(', ') }}{% endif %}
         </td>
-        <td>{{ p.rate_limit_per_min }}/min</td>
+        <td class="mono small">{{ p.rate_limit_per_min }}/min</td>
         <td class="small">{{ p.last_seen|ago }}</td>
         <td>{% if p.enabled %}<span class="pill on">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}</td>
         {% if is_admin %}
-        <td>
-          <form method="post" action="/plugins/{{ p.name }}/{{ 'disable' if p.enabled else 'enable' }}">
-            <button class="mini">{{ 'Disable' if p.enabled else 'Enable' }}</button>
-          </form>
-        </td>
+        <td><form method="post" action="/plugins/{{ p.name }}/{{ 'disable' if p.enabled else 'enable' }}">
+          <button class="mini">{{ 'Disable' if p.enabled else 'Enable' }}</button></form></td>
         {% endif %}
       </tr>
     {% else %}
-      <tr><td colspan="7" class="empty">No plugins registered yet.</td></tr>
+      <tr><td colspan="7" class="empty">No plugins registered yet. See the Manual to add one.</td></tr>
     {% endfor %}
     </tbody>
   </table>
-</section>
+</div>
 {% endblock %}

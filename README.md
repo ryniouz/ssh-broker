@@ -1,4 +1,4 @@
-# SSH Broker — v1.1.0
+# SSH Broker — v1.2.1
 
 A single-connection SSH **broker / proxy**. Instead of every app holding its own
 SSH credentials to your server, they all talk to one small API. The broker keeps
@@ -222,8 +222,10 @@ Interactive docs: `http://10.11.15.10:8000/docs`
 | POST | `/plugins` | `X-Admin-Token` | create/update a plugin |
 | POST | `/plugins/{name}/enable` \| `/disable` | `X-Admin-Token` | toggle |
 | GET  | `/logs` | `X-Admin-Token` | audit log |
+| POST | `/ssh/test` | `X-Admin-Token` | test a login (stores nothing) |
 | POST | `/ssh/acquire` | `X-Admin-Token` | one-time key bootstrap (host/user/password) |
-| GET  | `/ssh/status` | `X-Admin-Token` | SSH target + connection status |
+| POST | `/ssh/revoke` | `X-Admin-Token` | delete stored key + target (disconnect) |
+| GET  | `/ssh/status` | `X-Admin-Token` | SSH target + connection status + auth method |
 
 ---
 

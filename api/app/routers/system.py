@@ -38,6 +38,29 @@ async def acquire(body: AcquireRequest, x_admin_token: str = Header(default=""))
     return result
 
 
+@router.post("/test")
+async def test(body: AcquireRequest, x_admin_token: str = Header(default="")):
+    """Check the credentials can reach the host. Stores nothing."""
+    _require_admin(x_admin_token)
+    try:
+        result = await manager.test_login(
+            host=body.host, user=body.username, password=body.password, port=body.port
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(400, f"login test failed: {e}")
+    db.audit("info", "ssh_test", detail={"host": body.host, "user": body.username})
+    return result
+
+
+@router.post("/revoke")
+async def revoke(x_admin_token: str = Header(default="")):
+    """Delete the stored key + target; the broker becomes unconfigured."""
+    _require_admin(x_admin_token)
+    result = await manager.revoke()
+    db.audit("info", "ssh_revoke")
+    return result
+
+
 @router.get("/status")
 async def status(x_admin_token: str = Header(default="")):
     _require_admin(x_admin_token)

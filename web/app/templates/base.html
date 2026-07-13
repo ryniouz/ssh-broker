@@ -4,27 +4,68 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}SSH Broker{% endblock %}</title>
+  <link rel="icon" type="image/png" href="/static/logo.png">
   <link rel="stylesheet" href="/static/style.css">
+  <script>(function(){try{if(localStorage.getItem('theme')==='night')document.documentElement.setAttribute('data-theme','night');}catch(e){}})();</script>
 </head>
 <body>
 {% if user %}
-<header class="topbar">
-  <div class="brand">◆ SSH&nbsp;Broker <span class="ver">v1.1.0</span></div>
-  <nav>
-    <a href="/">Dashboard</a>
-    <a href="/logs">Logs</a>
-    <a href="/manual">Manual</a>
-    {% if is_admin %}
-      <a href="/users">Users{% if pending %} <span class="badge">{{ pending }}</span>{% endif %}</a>
-      <a href="/settings">Settings</a>
-    {% endif %}
-    <span class="who">{{ user.username }}{% if is_admin %} · admin{% endif %}</span>
-    <a href="/logout" class="logout">Sign out</a>
-  </nav>
-</header>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="/static/logo.png" alt="SSH Broker">
+      <div><div class="name">SSH Broker</div><div class="ver">v1.2.1</div></div>
+    </div>
+    <nav class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/logs">Logs</a>
+      <a href="/manual">Manual</a>
+      {% if is_admin %}
+        <a href="/users">Users{% if pending %} <span class="badge">{{ pending }}</span>{% endif %}</a>
+        <a href="/settings">Settings</a>
+      {% endif %}
+    </nav>
+    <div class="side-foot">
+      <div class="whoami">Signed in as <b>{{ user.username }}</b>{% if is_admin %} · admin{% endif %}</div>
+      <div class="side-actions">
+        <button type="button" class="theme-btn" onclick="toggleTheme()">
+          <span class="theme-ico">☾</span><span class="theme-label">Night</span>
+        </button>
+        <a href="/logout" class="signout">Sign out</a>
+      </div>
+    </div>
+  </aside>
+  <main class="main"><div class="wrap">{% block body %}{% endblock %}</div></main>
+</div>
+{% else %}
+  {% block auth %}{% endblock %}
 {% endif %}
-<main class="wrap">
-  {% block body %}{% endblock %}
-</main>
+
+<script>
+(function(){
+  document.querySelectorAll('.nav a').forEach(function(a){
+    if(a.getAttribute('href')===location.pathname) a.classList.add('active');
+  });
+  updateThemeLabel();
+})();
+function toggleTheme(){
+  var r=document.documentElement, night=r.getAttribute('data-theme')==='night';
+  if(night){r.removeAttribute('data-theme');try{localStorage.setItem('theme','day');}catch(e){}}
+  else{r.setAttribute('data-theme','night');try{localStorage.setItem('theme','night');}catch(e){}}
+  updateThemeLabel();
+}
+function updateThemeLabel(){
+  var night=document.documentElement.getAttribute('data-theme')==='night';
+  document.querySelectorAll('.theme-ico').forEach(function(e){e.textContent=night?'☀':'☾';});
+  document.querySelectorAll('.theme-label').forEach(function(e){e.textContent=night?'Day':'Night';});
+}
+function copyText(id, btn){
+  var el=document.getElementById(id); if(!el) return;
+  var t=(el.value!==undefined && el.tagName==='TEXTAREA')?el.value:(el.textContent||el.value);
+  navigator.clipboard.writeText(t).then(function(){
+    var o=btn.textContent; btn.textContent='Copied'; setTimeout(function(){btn.textContent=o;},1200);
+  });
+}
+</script>
 </body>
 </html>
