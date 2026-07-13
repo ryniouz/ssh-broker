@@ -10,74 +10,51 @@
 </head>
 <body>
 {% if user %}
-<div class="app">
-  <aside class="sidebar">
-    <div class="brand">
-      <img src="/static/logo.png?v={{ APP_VERSION }}" alt="SSH Broker">
-      <div><div class="name">SSH Broker</div><div class="ver">v{{ APP_VERSION }}</div></div>
-    </div>
-    <nav class="nav">
-      <a href="/">Dashboard</a>
-      <a href="/logs">Logs</a>
-      <a href="/manual">Manual</a>
-      {% if is_admin %}
-        <a href="/users">Users{% if pending %} <span class="badge">{{ pending }}</span>{% endif %}</a>
-        <a href="/settings">Settings</a>
-      {% endif %}
-    </nav>
-    <div class="side-foot">
-      <div class="whoami">Signed in as <b>{{ user.username }}</b>{% if is_admin %} · admin{% endif %}</div>
-      <div class="side-actions">
-        {% include "_theme_toggle.html" %}
-        <a href="/logout" class="signout">Sign out</a>
-      </div>
-    </div>
-  </aside>
-
-  <div class="mtop">
+<header class="topnav">
+  <a href="/" class="brand">
     <img src="/static/logo.png?v={{ APP_VERSION }}" alt="">
-    <b>SSH Broker</b><span class="ver">v{{ APP_VERSION }}</span>
-    <a href="/logout" class="signout">Sign out</a>
-  </div>
-
-  <main class="main">{% block body %}{% endblock %}</main>
-
-  <nav class="mtabs">
-    <a href="/">
-      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-      Dashboard
-    </a>
-    <a href="/logs">
-      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
-      Logs
-    </a>
-    <a href="/manual">
-      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5V4.5Z"/><path d="M20 19H6.5a2.5 2.5 0 0 0 0 5H20"/></svg>
-      Manual
-    </a>
+    <span class="name">SSH Broker</span><span class="ver">v{{ APP_VERSION }}</span>
+  </a>
+  <button type="button" class="nav-toggle" onclick="toggleMenu()" aria-label="Toggle menu" aria-expanded="false">
+    <svg class="ico-burger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    <svg class="ico-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+  </button>
+  <nav class="nav-panel" id="navPanel">
+    <a href="/">Dashboard</a>
+    <a href="/logs">Logs</a>
+    <a href="/manual">Manual</a>
     {% if is_admin %}
-    <a href="/users">
-      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Users{% if pending %}<span class="dot">{{ pending }}</span>{% endif %}
-    </a>
-    <a href="/settings">
-      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
-      Settings
-    </a>
+      <a href="/users">Users{% if pending %} <span class="badge">{{ pending }}</span>{% endif %}</a>
+      <a href="/settings">Settings</a>
     {% endif %}
+    <div class="nav-sep"></div>
+    {% include "_theme_toggle.html" %}
+    <span class="whoami">{{ user.username }}{% if is_admin %} · admin{% endif %}</span>
+    <a href="/logout" class="signout">Sign out</a>
   </nav>
-</div>
+</header>
+
+<main class="main">{% block body %}{% endblock %}</main>
+
 {% else %}
   {% block auth %}{% endblock %}
 {% endif %}
 
 <script>
 (function(){
-  document.querySelectorAll('.nav a, .mtabs a').forEach(function(a){
+  document.querySelectorAll('.nav-panel a').forEach(function(a){
     if(a.getAttribute('href')===location.pathname) a.classList.add('active');
   });
   updateThemeLabel();
 })();
+function toggleMenu(){
+  var panel = document.getElementById('navPanel');
+  var btn = document.querySelector('.nav-toggle');
+  var open = panel.classList.toggle('open');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  document.querySelectorAll('.ico-burger').forEach(function(e){e.style.display = open ? 'none' : 'block';});
+  document.querySelectorAll('.ico-close').forEach(function(e){e.style.display = open ? 'block' : 'none';});
+}
 function toggleTheme(){
   var r=document.documentElement, night=r.getAttribute('data-theme')==='night';
   if(night){r.removeAttribute('data-theme');try{localStorage.setItem('theme','day');}catch(e){}}

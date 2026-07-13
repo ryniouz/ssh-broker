@@ -1,4 +1,4 @@
-# SSH Broker — v1.3.1
+# SSH Broker — v1.3.2
 
 A single-connection SSH **broker / proxy**. Instead of every app holding its own
 SSH credentials to your server, they all talk to one small API. The broker keeps
