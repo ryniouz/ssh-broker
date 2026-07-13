@@ -47,7 +47,8 @@ def init_db() -> None:
                 capabilities TEXT NOT NULL,   -- json: {"metrics": [...], "commands": {...}}
                 rate_limit_per_min INTEGER NOT NULL DEFAULT 60,
                 created_at REAL NOT NULL,
-                last_seen REAL
+                last_seen REAL,
+                last_ip TEXT
             );
             CREATE TABLE IF NOT EXISTS logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,6 +60,10 @@ def init_db() -> None:
             );
             """
         )
+        # migrate older DBs that predate per-plugin connection tracking
+        cols = {r[1] for r in c.execute("PRAGMA table_info(plugins)")}
+        if "last_ip" not in cols:
+            c.execute("ALTER TABLE plugins ADD COLUMN last_ip TEXT")
         c.commit()
 
 

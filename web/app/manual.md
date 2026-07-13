@@ -1,4 +1,4 @@
-# SSH Broker — Operator Manual (v1.2.1)
+# SSH Broker — Operator Manual (v1.2.2)
 
 One persistent SSH connection to the host, shared by all your apps through a
 small capability-gated API. Apps never hold SSH creds — they hold a scoped API
@@ -68,7 +68,15 @@ python cli/broker-cli.py --api http://10.11.15.10:8000 \
 ```
 
 Command templates use `$param` placeholders (Docker's `{{.X}}` and awk `$8` pass
-through). Every value is regex-validated then shell-quoted.
+through). Every value is regex-validated then shell-quoted. For data that isn't a
+built-in metric (GPU load, temperatures, SMART, versions…), add a **command** that
+runs the query — e.g. `nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader`.
+
+**Manage plugins** from the dashboard: click a plugin to open its page — live
+connection status + client IP, per-plugin activity log, edit capabilities,
+enable/disable, **regenerate key**, or delete. The full "Instruction for Claude"
+(build + use plugins, with a GPU example) is at the bottom of this manual, and
+each plugin page generates a ready-to-save `PLUGIN_<name>.md` usage file.
 
 ## Use the broker (as an app)
 

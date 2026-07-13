@@ -16,11 +16,11 @@
 </article>
 
 <section class="card">
-  <h2>Instruction for Cloud</h2>
-  <p class="small">Paste this into a cloud/AI agent (e.g. Claude Code). It contains everything needed to register a plugin and drive the broker{% if admin_token %} — the admin key below is filled in{% else %} (ask an admin for the API key){% endif %}.</p>
+  <h2>Instruction for Claude</h2>
+  <p class="small">Paste this into Claude (e.g. Claude Code). It has everything needed to build a plugin, use it while developing, and generate a per-plugin instruction file{% if admin_token %} — your admin key is filled in{% else %} (ask an admin for the API key){% endif %}.</p>
   <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem">
-    <button type="button" class="copy" onclick="copyText('cloud', this)">Copy all</button>
+    <button type="button" class="copy" onclick="copyText('claude', this)">Copy all</button>
   </div>
-  <textarea id="cloud" class="cloud-box" readonly spellcheck="false">{{ cloud_text }}</textarea>
+  <textarea id="claude" class="cloud-box" readonly spellcheck="false">{{ claude_text }}</textarea>
 </section>
 {% endblock %}

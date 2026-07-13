@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name if p else 'Plugin' }} — SSH Broker{% endblock %}
+{% block body %}
+{% if not p %}
+  <div class="page-h"><h1>Plugin</h1></div>
+  <div class="err">{{ error }}</div>
+  <a href="/" class="btn btn-ghost">← Back</a>
+{% else %}
+{% set caps = p.capabilities|fromjson %}
+<div class="page-h">
+  <h1 class="mono">{{ p.name }}</h1>
+  <p>{{ p.description or 'No description.' }}</p>
+</div>
+
+<section class="card">
+  <h2>Connection</h2>
+  <div class="prompt">
+    <span class="u">plugin&nbsp;</span><span>{{ p.name }}</span>
+    {% if not p.enabled %}<span class="bad">&nbsp;— disabled</span>
+    {% elif p.last_seen|recent %}<span class="ok">&nbsp;— active ✓</span>
+    {% elif p.last_seen %}<span class="cur">&nbsp;— idle</span>
+    {% else %}<span class="cur">&nbsp;— never connected</span>{% endif %}
+  </div>
+  <dl style="margin-top:.9rem">
+    <dt>Client IP</dt><dd>{{ p.last_ip or '—' }}</dd>
+    <dt>Last seen</dt><dd>{{ p.last_seen|ago }}{% if p.last_seen %} ({{ p.last_seen|fmtts }}){% endif %}</dd>
+    <dt>Created</dt><dd>{{ p.created_at|fmtts }}</dd>
+    <dt>Rate limit</dt><dd>{{ p.rate_limit_per_min }}/min</dd>
+    <dt>State</dt><dd>{% if p.enabled %}<span class="pill on">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}</dd>
+  </dl>
+  <div class="row-actions" style="margin-top:1rem">
+    <form method="post" action="/plugins/{{ p.name }}/{{ 'disable' if p.enabled else 'enable' }}">
+      <button class="mini">{{ 'Disable' if p.enabled else 'Enable' }}</button></form>
+    <form method="post" action="/plugins/{{ p.name }}/rotate" onsubmit="return confirm('Generate a new API key? The current key stops working immediately.')">
+      <button class="mini">Regenerate key</button></form>
+    <form method="post" action="/plugins/{{ p.name }}/delete" onsubmit="return confirm('Delete plugin {{ p.name }}? This cannot be undone.')">
+      <button class="mini deny">Delete</button></form>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Edit capabilities</h2>
+  <form method="post" action="/plugins/{{ p.name }}/edit">
+    <div class="form-grid">
+      <label>Rate limit / min<input name="rate_limit_per_min" type="number" value="{{ p.rate_limit_per_min }}" required></label>
+      <label>Enabled<span style="display:block;margin-top:.5rem"><input type="checkbox" name="enabled" value="on" {{ 'checked' if p.enabled }} style="width:auto;display:inline"> active</span></label>
+      <label class="full">Description<input name="description" value="{{ p.description or '' }}"></label>
+      <label class="full">Capabilities (JSON)
+        <textarea name="capabilities_json" class="cloud-box" spellcheck="false">{{ caps|pretty }}</textarea>
+      </label>
+      <div class="actions"><button type="submit">Save changes</button></div>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>How to use this plugin</h2>
+  <p class="small">Give this to your app / Claude. The key shows as <code>&lt;PLUGIN_API_KEY&gt;</code> — reveal a real one with <em>Regenerate key</em> above, or use the key saved at creation.</p>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem">
+    <button type="button" class="copy" onclick="copyText('usage', this)">Copy all</button>
+  </div>
+  <textarea id="usage" class="cloud-box" readonly spellcheck="false">{{ usage }}</textarea>
+</section>
+
+<section class="card">
+  <h2>Activity log <span class="count">{{ logs|length }}</span></h2>
+  <table>
+    <thead><tr><th>Time</th><th>Level</th><th>Action</th><th>Detail</th></tr></thead>
+    <tbody>
+    {% for r in logs %}
+      <tr>
+        <td class="mono small">{{ r.ts|fmtts }}</td>
+        <td><span class="pill {{ r.level }}">{{ r.level }}</span></td>
+        <td class="mono small">{{ r.action }}</td>
+        <td class="mono small detail">{{ r.detail }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="empty">No activity yet for this plugin.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="small" style="margin-top:.6rem"><a href="/logs?plugin={{ p.name }}">Open in full log view →</a></p>
+</section>
+
+<a href="/" class="btn btn-ghost">← Back to dashboard</a>
+{% endif %}
+{% endblock %}

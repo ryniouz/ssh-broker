@@ -100,6 +100,7 @@ tbody tr:last-child td{border-bottom:0}
   font-weight:600;border:1px solid transparent}
 .pill.on,.pill.info,.pill.active{color:var(--accent-ink);background:var(--accent-soft)}
 .pill.off{color:var(--faint);background:var(--surface-2)}
+.pill.idle{color:var(--warn);background:var(--warn-soft)}
 .pill.error{color:var(--danger);background:var(--danger-soft)}
 .pill.denied,.pill.pending{color:var(--warn);background:var(--warn-soft)}
 .badge{display:inline-block;min-width:1.15rem;text-align:center;background:var(--accent);

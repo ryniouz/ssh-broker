@@ -1,15 +1,17 @@
-"""SSH Broker dashboard (v1.1).
+"""SSH Broker dashboard (v1.2.2).
 
 Server-rendered admin UI:
-  * First sign-up becomes the admin (active). Later sign-ups are PENDING and
-    must be approved by an admin under "Users".
-  * Admin-only tabs: Users (approve/deny) and Settings (acquire the SSH key).
-  * Dashboard / Logs / Manual as before.
+  * First sign-up becomes the admin; later sign-ups need approval (Users).
+  * Settings: test / acquire / revoke the broker's SSH key.
+  * Plugins: create, view detail (status, IP, per-plugin logs, usage), edit,
+    enable/disable, rotate key, delete.
+  * Manual: admin key + "Instruction for Claude" (build + use plugins).
 
-Passwords are hashed with bcrypt directly (no passlib). Sessions are signed
-cookies. The broker API is reached with the shared admin token.
+Passwords are hashed with bcrypt directly. Sessions are signed cookies. The
+broker API is reached with the shared admin token.
 """
 import os
+import json
 import time
 import sqlite3
 import logging
@@ -37,7 +39,6 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 
 def _fromjson(s):
-    import json
     try:
         return json.loads(s) if isinstance(s, str) else (s or {})
     except Exception:  # noqa: BLE001
@@ -61,9 +62,21 @@ def _fmtts(ts):
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(float(ts))) if ts else ""
 
 
+def _recent(ts, secs: int = 120) -> bool:
+    return bool(ts) and (time.time() - float(ts)) < secs
+
+
+def _pretty(obj) -> str:
+    if isinstance(obj, str):
+        obj = _fromjson(obj)
+    return json.dumps(obj, indent=2)
+
+
 templates.env.filters["fromjson"] = _fromjson
 templates.env.filters["ago"] = _ago
 templates.env.filters["fmtts"] = _fmtts
+templates.env.filters["recent"] = _recent
+templates.env.filters["pretty"] = _pretty
 
 
 # ---- password hashing (bcrypt, 72-byte safe) -----------------------------
@@ -88,7 +101,6 @@ def db() -> sqlite3.Connection:
         "password_hash TEXT, is_admin INTEGER DEFAULT 0, "
         "status TEXT DEFAULT 'pending', created_at REAL)"
     )
-    # migrate older schemas that predate the approval system
     cols = {r[1] for r in c.execute("PRAGMA table_info(users)")}
     if "is_admin" not in cols:
         c.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
@@ -129,69 +141,163 @@ async def api_get(path: str, params: dict | None = None):
 
 async def api_post(path: str, json_body: dict | None = None, timeout: float = 30):
     async with httpx.AsyncClient(timeout=timeout) as client:
-        r = await client.post(f"{API_BASE}{path}", json=json_body,
-                              headers={"X-Admin-Token": ADMIN_TOKEN})
-        return r
+        return await client.post(f"{API_BASE}{path}", json=json_body,
+                                 headers={"X-Admin-Token": ADMIN_TOKEN})
 
 
-def cloud_instructions(admin_token: str | None) -> str:
-    """Self-contained brief for a cloud/AI agent to onboard a plugin + drive the broker."""
-    tok = admin_token or "<ADMIN_API_KEY — ask an admin>"
-    api = API_BASE
-    return f"""SSH BROKER — INSTRUCTIONS FOR A CLOUD / AI AGENT
-=================================================
-You are connecting an app to an SSH Broker. The broker holds ONE SSH connection
-to a host and exposes a small HTTP API. Your app never gets shell access — it
-gets a scoped API key that can read specific metrics and run specific named,
-whitelisted commands.
+async def api_delete(path: str, timeout: float = 15):
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        return await client.request("DELETE", f"{API_BASE}{path}",
+                                    headers={"X-Admin-Token": ADMIN_TOKEN})
 
-BASE URL:     {api}
-ADMIN KEY:    {tok}      (header: X-Admin-Token — for registering plugins)
-PLUGIN KEY:   returned once when you register a plugin (header: X-API-Key)
 
-STEP 1 — Register a plugin (once). A "plugin" declares what your app may do.
-  Commands are templates with $param placeholders; each param is regex-checked
-  then shell-quoted. Docker '{{{{.X}}}}' and awk '$8' pass through untouched.
+# ---- instruction generators ----------------------------------------------
+CLAUDE_TEMPLATE = r"""INSTRUCTIONS FOR CLAUDE — SSH Broker
+====================================
+You are wiring an app up to an SSH Broker. The broker keeps ONE SSH connection
+to a host and exposes a small HTTP API. Your app never gets a shell — it gets a
+scoped API key that can read whitelisted data and run whitelisted commands.
 
-  curl -s -X POST {api}/plugins \\
-    -H "X-Admin-Token: {tok}" -H "Content-Type: application/json" \\
-    -d '{{
-      "name": "my-app",
-      "description": "what my app does",
-      "rate_limit_per_min": 60,
-      "capabilities": {{
-        "metrics": ["cpu","ram","disk"],
-        "commands": {{
-          "docker_pull": {{"template":"docker pull $image","timeout":300,
-            "params":{{"image":{{"pattern":"^[a-zA-Z0-9._/:@-]+$","required":true}}}}}},
-          "docker_ps": {{"template":"docker ps --format '{{{{.Names}}}}\\t{{{{.Status}}}}'","params":{{}}}}
-        }},
-        "upload": {{"path_prefix":"/mnt/user/appdata/"}}
-      }}
-    }}'
-  Response includes "api_key":"bpk_..."  — SAVE IT. It is shown only once.
+ENDPOINTS
+  Base URL   : %API%
+  Admin key  : %TOK%        (header  X-Admin-Token  — creates/edits plugins)
+  Plugin key : returned once when a plugin is created/rotated (header X-API-Key)
 
-STEP 2 — Read host metrics (uses the plugin key):
-  curl -s {api}/metrics -H "X-API-Key: bpk_..."
+────────────────────────────────────────────────────────────────────────────
+1. THE MODEL: metrics vs commands
+   • metrics   = a small fixed set of cached host stats: cpu, ram, disk.
+   • commands  = named, whitelisted shell templates you define. THIS is how you
+                 pull anything else — GPU load, temperatures, container state,
+                 package versions, etc. If the data isn't a built-in metric,
+                 add a command that runs the query.
 
-STEP 3 — Run a whitelisted command by NAME (never raw shell):
-  curl -s -X POST {api}/exec/run -H "X-API-Key: bpk_..." \\
-    -H "Content-Type: application/json" \\
-    -d '{{"command":"docker_pull","params":{{"image":"ghcr.io/me/app:latest"}}}}'
+2. BUILDING A PLUGIN (capability schema)
+   {
+     "name": "my-app",                      // unique, [a-z0-9-]
+     "description": "what my app does",
+     "enabled": true,
+     "rate_limit_per_min": 60,              // requests/min before 429
+     "capabilities": {
+       "metrics": ["cpu","ram","disk"],     // any of cpu|ram|disk (omit if none)
+       "commands": {
+         "<command_name>": {
+           "template": "some cmd $arg",      // $param placeholders (see rules)
+           "timeout": 60,                    // seconds (optional, default 60)
+           "params": {
+             "arg": { "pattern": "^[A-Za-z0-9._/:-]+$", "required": true }
+           }
+         }
+       },
+       "upload": { "path_prefix": "/mnt/user/appdata/" }   // optional SFTP grant
+     }
+   }
 
-STEP 4 — Push a file over SFTP (if your plugin has "upload"):
-  curl -s -X POST {api}/exec/upload -H "X-API-Key: bpk_..." \\
-    -H "Content-Type: application/json" \\
-    -d '{{"remote_path":"/mnt/user/appdata/x/compose.yml","content_base64":"<base64>"}}'
+   TEMPLATE RULES (important)
+   • Use $name or ${name} for parameters. Every value is regex-checked against
+     its "pattern" then shell-quoted, so an app can't inject shell.
+   • Docker's {{.Field}} and awk's $8 are NOT parameters — they pass through
+     untouched. Only $word tokens are substituted.
+   • A param with no matching "pattern" match is rejected (400). Keep patterns
+     as tight as possible.
 
-RULES
-  - To add a NEW capability, update the plugin (POST /plugins again with the same
-    name and the fuller capabilities block) using the admin key.
-  - A command not in the plugin's grant returns 403. A bad param returns 400.
-  - If you get 503 "not configured", an admin must acquire the SSH key first
-    (Settings -> Acquire SSH key in the web UI).
-  - Auth: X-Admin-Token manages plugins; X-API-Key is per-app.
+3. EXAMPLES (mix and match into one plugin's "commands")
+   Docker:
+     "docker_ps":   { "template": "docker ps --format '{{.Names}}\t{{.Status}}'", "params": {} }
+     "docker_pull": { "template": "docker pull $image", "timeout": 300,
+                      "params": { "image": { "pattern": "^[a-zA-Z0-9._/:@-]+$", "required": true } } }
+   GPU (NVIDIA) — utilisation, memory, temperature:
+     "gpu": { "template": "nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits",
+              "params": {} }
+     "gpu_procs": { "template": "nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader", "params": {} }
+   Sensors / disk health:
+     "temps":  { "template": "sensors -u", "params": {} }
+     "smart":  { "template": "smartctl -A $dev", "params": { "dev": { "pattern": "^/dev/[a-z0-9]+$", "required": true } } }
+   Free-form read (still constrained by params):
+     "tail_log": { "template": "tail -n $lines $path",
+                   "params": { "lines": {"pattern":"^[0-9]{1,4}$","required":true},
+                               "path":  {"pattern":"^/mnt/user/[A-Za-z0-9._/-]+$","required":true} } }
+
+4. REGISTER THE PLUGIN (admin key). Returns the plugin api_key ONCE.
+   curl -s -X POST %API%/plugins -H "X-Admin-Token: %TOK%" \
+     -H "Content-Type: application/json" -d @plugin.json
+   # -> {"status":"created","id":"pl_...","api_key":"bpk_..."}   SAVE the api_key.
+
+5. USE THE PLUGIN while developing / running your app (plugin key):
+   Read metrics:
+     curl -s %API%/metrics -H "X-API-Key: bpk_..."
+   Run a command by NAME (never raw shell):
+     curl -s -X POST %API%/exec/run -H "X-API-Key: bpk_..." \
+       -H "Content-Type: application/json" \
+       -d '{"command":"gpu","params":{}}'
+   Push a file (needs "upload"):
+     curl -s -X POST %API%/exec/upload -H "X-API-Key: bpk_..." \
+       -H "Content-Type: application/json" \
+       -d '{"remote_path":"/mnt/user/appdata/app/x.conf","content_base64":"<b64>"}'
+
+6. UPDATING a plugin later: POST /plugins again with the SAME name and the fuller
+   capabilities block (admin key). Existing api_key is preserved. To mint a new
+   key use POST /plugins/<name>/rotate-key. To remove it: DELETE /plugins/<name>.
+
+7. AFTER YOU BUILD A PLUGIN — GENERATE ITS INSTRUCTION FILE.
+   Save a file in your app repo, e.g. PLUGIN_<name>.md, containing:
+     • the base URL and the plugin's api_key (X-API-Key) + admin key note,
+     • every command name with its params and a ready curl example,
+     • which metrics/upload the plugin may use.
+   The broker's web UI generates exactly this text on the plugin's page and when
+   the key is created/rotated — copy it verbatim into that file so the app (and
+   the next Claude session) knows how to call the plugin.
+
+RULES / ERRORS
+  • X-Admin-Token manages plugins; X-API-Key is per app.
+  • 403 = command/metric not granted · 400 = bad param · 429 = rate limited ·
+    503 = broker has no SSH key yet (an admin must Acquire one in Settings).
 """
+
+
+def claude_instructions(admin_token: str | None) -> str:
+    tok = admin_token or "<ADMIN_API_KEY — ask an admin>"
+    return CLAUDE_TEMPLATE.replace("%API%", API_BASE).replace("%TOK%", tok)
+
+
+def plugin_usage(p: dict, key: str) -> str:
+    """Per-plugin instruction: how to call THIS plugin, with its key + auth."""
+    caps = _fromjson(p.get("capabilities"))
+    api = API_BASE
+    L = [f"PLUGIN: {p.get('name','')}"]
+    if p.get("description"):
+        L.append(p["description"])
+    L += ["", "AUTH",
+          f"  Base URL : {api}",
+          f"  Header   : X-API-Key: {key}",
+          f"  Rate     : {p.get('rate_limit_per_min', 60)}/min",
+          f"  Admin key (to edit this plugin, header X-Admin-Token): {ADMIN_TOKEN}", ""]
+    metrics = caps.get("metrics") or []
+    if metrics:
+        L += [f"METRICS (families: {', '.join(metrics)})",
+              f"  curl -s {api}/metrics -H \"X-API-Key: {key}\"", ""]
+    commands = caps.get("commands") or {}
+    if commands:
+        L.append("COMMANDS")
+        for cname, spec in commands.items():
+            params = spec.get("params") or {}
+            example = {k: f"<{k}>" for k in params}
+            L.append(f"  • {cname}   template: {spec.get('template', '')}")
+            L.append(f"    params: {', '.join(params.keys()) or '(none)'}")
+            L.append(f"    curl -s -X POST {api}/exec/run -H \"X-API-Key: {key}\" "
+                     f"-H \"Content-Type: application/json\" \\")
+            L.append(f"      -d '{json.dumps({'command': cname, 'params': example})}'")
+        L.append("")
+    up = caps.get("upload")
+    if up:
+        prefix = up.get("path_prefix", "/tmp/")
+        L += [f"UPLOAD (files under {prefix})",
+              f"  curl -s -X POST {api}/exec/upload -H \"X-API-Key: {key}\" "
+              f"-H \"Content-Type: application/json\" \\",
+              f"      -d '{{\"remote_path\":\"{prefix}file\",\"content_base64\":\"<b64>\"}}'", ""]
+    L += ["NOTES",
+          "  - Call commands by NAME only; raw shell is never accepted.",
+          "  - 403 not granted · 400 bad param · 429 rate limited · 503 no SSH key yet."]
+    return "\n".join(L)
 
 
 # ---- auth routes ---------------------------------------------------------
@@ -215,7 +321,6 @@ async def signup(request: Request, username: str = Form(...), password: str = Fo
     if first:
         request.session["user"] = username
         return RedirectResponse("/", status_code=302)
-    # pending: do not log in
     return templates.TemplateResponse("pending.html", {"request": request, "username": username})
 
 
@@ -245,6 +350,11 @@ async def logout(request: Request):
 
 
 # ---- dashboard -----------------------------------------------------------
+async def _pending_count() -> int:
+    with db() as c:
+        return c.execute("SELECT COUNT(*) n FROM users WHERE status='pending'").fetchone()["n"]
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     if not current_user(request):
@@ -255,11 +365,9 @@ async def dashboard(request: Request):
         plugins = await api_get("/plugins")
     except Exception as e:  # noqa: BLE001
         err = str(e)
-    with db() as c:
-        pending = c.execute("SELECT COUNT(*) n FROM users WHERE status='pending'").fetchone()["n"]
     return templates.TemplateResponse("dashboard.html", {
         "request": request, "user": current_user(request), "is_admin": is_admin(request),
-        "health": health, "plugins": plugins, "error": err, "pending": pending,
+        "health": health, "plugins": plugins, "error": err, "pending": await _pending_count(),
     })
 
 
@@ -289,8 +397,126 @@ async def manual(request: Request):
     return templates.TemplateResponse("manual.html", {
         "request": request, "user": current_user(request), "is_admin": admin, "content": html,
         "admin_token": ADMIN_TOKEN if admin else None,
-        "cloud_text": cloud_instructions(ADMIN_TOKEN if admin else None),
+        "claude_text": claude_instructions(ADMIN_TOKEN if admin else None),
     })
+
+
+# ---- admin: plugins ------------------------------------------------------
+def _admin_ctx(request, **extra):
+    ctx = {"request": request, "user": current_user(request), "is_admin": True,
+           "pending": 0}
+    ctx.update(extra)
+    return ctx
+
+
+@app.get("/plugins/new", response_class=HTMLResponse)
+async def plugin_new_form(request: Request):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    sample = json.dumps({
+        "metrics": ["cpu", "ram", "disk"],
+        "commands": {
+            "gpu": {"template": "nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits", "params": {}},
+        },
+        "upload": {"path_prefix": "/mnt/user/appdata/"},
+    }, indent=2)
+    return templates.TemplateResponse("plugin_new.html",
+        _admin_ctx(request, error=None, form={"capabilities": sample, "rate": 60}))
+
+
+@app.post("/plugins/new", response_class=HTMLResponse)
+async def plugin_new(request: Request, name: str = Form(...), description: str = Form(""),
+                     rate_limit_per_min: int = Form(60), capabilities_json: str = Form("{}")):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    form = {"name": name, "description": description, "rate": rate_limit_per_min, "capabilities": capabilities_json}
+    try:
+        caps = json.loads(capabilities_json or "{}")
+    except json.JSONDecodeError as e:
+        return templates.TemplateResponse("plugin_new.html",
+            _admin_ctx(request, error=f"Capabilities is not valid JSON: {e}", form=form))
+    r = await api_post("/plugins", {"name": name, "description": description,
+                                    "capabilities": caps, "rate_limit_per_min": int(rate_limit_per_min)})
+    if r.status_code != 200:
+        detail = r.json().get("detail", r.text) if r.headers.get("content-type", "").startswith("application/json") else r.text
+        return templates.TemplateResponse("plugin_new.html", _admin_ctx(request, error=str(detail), form=form))
+    data = r.json()
+    if data.get("status") != "created":
+        # name already existed -> it was updated; go to its page
+        return RedirectResponse(f"/plugins/{name}", status_code=302)
+    p = await api_get(f"/plugins/{name}")
+    return templates.TemplateResponse("plugin_created.html",
+        _admin_ctx(request, p=p, api_key=data["api_key"], usage=plugin_usage(p, data["api_key"]), rotated=False))
+
+
+@app.get("/plugins/{name}", response_class=HTMLResponse)
+async def plugin_detail(request: Request, name: str):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    try:
+        p = await api_get(f"/plugins/{name}")
+    except Exception as e:  # noqa: BLE001
+        return templates.TemplateResponse("plugin_detail.html",
+            _admin_ctx(request, p=None, error=f"Plugin not found: {e}", logs=[], usage=""))
+    logs = []
+    try:
+        logs = await api_get("/logs", {"plugin": name, "limit": 200})
+    except Exception:  # noqa: BLE001
+        pass
+    return templates.TemplateResponse("plugin_detail.html",
+        _admin_ctx(request, p=p, error=None, logs=logs, usage=plugin_usage(p, "<PLUGIN_API_KEY>")))
+
+
+@app.post("/plugins/{name}/edit")
+async def plugin_edit(request: Request, name: str, description: str = Form(""),
+                      rate_limit_per_min: int = Form(60), capabilities_json: str = Form("{}"),
+                      enabled: str = Form("")):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    try:
+        caps = json.loads(capabilities_json or "{}")
+    except json.JSONDecodeError:
+        return RedirectResponse(f"/plugins/{name}?err=badjson", status_code=302)
+    await api_post("/plugins", {"name": name, "description": description, "capabilities": caps,
+                                "rate_limit_per_min": int(rate_limit_per_min), "enabled": enabled == "on"})
+    return RedirectResponse(f"/plugins/{name}", status_code=302)
+
+
+@app.post("/plugins/{name}/enable")
+async def plugin_enable(request: Request, name: str):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    await api_post(f"/plugins/{name}/enable")
+    return RedirectResponse(f"/plugins/{name}", status_code=302)
+
+
+@app.post("/plugins/{name}/disable")
+async def plugin_disable(request: Request, name: str):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    await api_post(f"/plugins/{name}/disable")
+    return RedirectResponse(f"/plugins/{name}", status_code=302)
+
+
+@app.post("/plugins/{name}/rotate", response_class=HTMLResponse)
+async def plugin_rotate(request: Request, name: str):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    r = await api_post(f"/plugins/{name}/rotate-key")
+    if r.status_code != 200:
+        return RedirectResponse(f"/plugins/{name}", status_code=302)
+    key = r.json()["api_key"]
+    p = await api_get(f"/plugins/{name}")
+    return templates.TemplateResponse("plugin_created.html",
+        _admin_ctx(request, p=p, api_key=key, usage=plugin_usage(p, key), rotated=True))
+
+
+@app.post("/plugins/{name}/delete")
+async def plugin_delete(request: Request, name: str):
+    if not is_admin(request):
+        return RedirectResponse("/login", status_code=302)
+    await api_delete(f"/plugins/{name}")
+    return RedirectResponse("/", status_code=302)
 
 
 # ---- admin: user management ----------------------------------------------
@@ -300,9 +526,8 @@ async def users_view(request: Request):
         return RedirectResponse("/login", status_code=302)
     with db() as c:
         rows = c.execute("SELECT id,username,is_admin,status,created_at FROM users ORDER BY status='pending' DESC, created_at").fetchall()
-    return templates.TemplateResponse("users.html", {
-        "request": request, "user": current_user(request), "is_admin": True, "rows": rows,
-    })
+    return templates.TemplateResponse("users.html",
+        _admin_ctx(request, rows=rows, pending=await _pending_count()))
 
 
 @app.post("/users/{uid}/{action}")
@@ -312,7 +537,7 @@ async def user_action(request: Request, uid: int, action: str):
     me = current_user(request)
     with db() as c:
         target = c.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
-        if target and target["username"] != me["username"]:  # never act on yourself
+        if target and target["username"] != me["username"]:
             if action == "approve":
                 c.execute("UPDATE users SET status='active' WHERE id=?", (uid,))
             elif action == "deny":
@@ -332,7 +557,7 @@ def _settings_ctx(request, status, **extra):
     ctx = {
         "request": request, "user": current_user(request), "is_admin": True,
         "status": status, "result": None, "test_result": None, "error": None,
-        "admin_token": ADMIN_TOKEN,
+        "admin_token": ADMIN_TOKEN, "pending": 0,
     }
     ctx.update(extra)
     return ctx
@@ -351,9 +576,6 @@ async def settings_acquire(request: Request, host: str = Form(...), username: st
                            password: str = Form(...), port: int = Form(22), intent: str = Form("acquire")):
     if not is_admin(request):
         return RedirectResponse("/login", status_code=302)
-    # "test" checks the login can reach the host and stores nothing;
-    # "acquire" installs the broker's key. The password is forwarded once and
-    # never stored by the web layer.
     endpoint = "/ssh/test" if intent == "test" else "/ssh/acquire"
     result_key = "test_result" if intent == "test" else "result"
     out, error = None, None
@@ -385,12 +607,3 @@ async def settings_revoke(request: Request):
         error = str(e)
     status = await _ssh_status()
     return templates.TemplateResponse("settings.html", _settings_ctx(request, status, error=error))
-
-
-@app.post("/plugins/{name}/{action}")
-async def plugin_action(request: Request, name: str, action: str):
-    if not is_admin(request):
-        return RedirectResponse("/login", status_code=302)
-    if action in ("enable", "disable"):
-        await api_post(f"/plugins/{name}/{action}")
-    return RedirectResponse("/", status_code=302)

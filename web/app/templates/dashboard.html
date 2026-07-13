@@ -34,29 +34,32 @@
 {% endif %}
 
 <div class="card">
-  <h2>Plugins <span class="count">{{ plugins|length }}</span></h2>
+  <h2>Plugins <span class="count">{{ plugins|length }}</span>
+    {% if is_admin %}<a href="/plugins/new" class="btn mini" style="margin-left:auto">+ New plugin</a>{% endif %}
+  </h2>
   <table>
-    <thead><tr><th>Name</th><th>Description</th><th>Capabilities</th><th>Rate</th><th>Last seen</th><th>State</th>{% if is_admin %}<th></th>{% endif %}</tr></thead>
+    <thead><tr><th>Name</th><th>Connection</th><th>Client IP</th><th>Capabilities</th><th>Rate</th><th>State</th></tr></thead>
     <tbody>
     {% for p in plugins %}
       {% set caps = p.capabilities|fromjson %}
       <tr>
-        <td class="mono">{{ p.name }}</td>
-        <td class="small">{{ p.description }}</td>
+        <td class="mono">{% if is_admin %}<a href="/plugins/{{ p.name }}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</td>
+        <td>
+          {% if not p.enabled %}<span class="pill off">disabled</span>
+          {% elif p.last_seen|recent %}<span class="pill on">● active</span> <span class="small">{{ p.last_seen|ago }}</span>
+          {% elif p.last_seen %}<span class="pill idle">idle</span> <span class="small">{{ p.last_seen|ago }}</span>
+          {% else %}<span class="small">never connected</span>{% endif %}
+        </td>
+        <td class="mono small">{{ p.last_ip or '—' }}</td>
         <td class="mono small">
           {% if caps.metrics %}metrics: {{ caps.metrics|join(', ') }}<br>{% endif %}
           {% if caps.commands %}cmds: {{ caps.commands.keys()|join(', ') }}{% endif %}
         </td>
         <td class="mono small">{{ p.rate_limit_per_min }}/min</td>
-        <td class="small">{{ p.last_seen|ago }}</td>
         <td>{% if p.enabled %}<span class="pill on">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}</td>
-        {% if is_admin %}
-        <td><form method="post" action="/plugins/{{ p.name }}/{{ 'disable' if p.enabled else 'enable' }}">
-          <button class="mini">{{ 'Disable' if p.enabled else 'Enable' }}</button></form></td>
-        {% endif %}
       </tr>
     {% else %}
-      <tr><td colspan="7" class="empty">No plugins registered yet. See the Manual to add one.</td></tr>
+      <tr><td colspan="6" class="empty">No plugins yet.{% if is_admin %} <a href="/plugins/new">Create one →</a>{% endif %}</td></tr>
     {% endfor %}
     </tbody>
   </table>

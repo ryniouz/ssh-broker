@@ -1,4 +1,4 @@
-# SSH Broker — v1.2.1
+# SSH Broker — v1.2.2
 
 A single-connection SSH **broker / proxy**. Instead of every app holding its own
 SSH credentials to your server, they all talk to one small API. The broker keeps
@@ -218,10 +218,13 @@ Interactive docs: `http://10.11.15.10:8000/docs`
 | GET  | `/metrics` | `X-API-Key` | cached host metrics (filtered by grant) |
 | POST | `/exec/run` | `X-API-Key` | run a named, whitelisted command |
 | POST | `/exec/upload` | `X-API-Key` | SFTP a file to an allowed path |
-| GET  | `/plugins` | `X-Admin-Token` | list plugins |
+| GET  | `/plugins` | `X-Admin-Token` | list plugins (incl. last-seen + client IP) |
+| GET  | `/plugins/{name}` | `X-Admin-Token` | one plugin's full config |
 | POST | `/plugins` | `X-Admin-Token` | create/update a plugin |
 | POST | `/plugins/{name}/enable` \| `/disable` | `X-Admin-Token` | toggle |
-| GET  | `/logs` | `X-Admin-Token` | audit log |
+| POST | `/plugins/{name}/rotate-key` | `X-Admin-Token` | mint a new API key (shown once) |
+| DELETE | `/plugins/{name}` | `X-Admin-Token` | delete a plugin |
+| GET  | `/logs?plugin=<name>` | `X-Admin-Token` | audit log (filter per plugin) |
 | POST | `/ssh/test` | `X-Admin-Token` | test a login (stores nothing) |
 | POST | `/ssh/acquire` | `X-Admin-Token` | one-time key bootstrap (host/user/password) |
 | POST | `/ssh/revoke` | `X-Admin-Token` | delete stored key + target (disconnect) |

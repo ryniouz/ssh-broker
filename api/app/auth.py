@@ -10,7 +10,7 @@ import time
 import json
 from collections import defaultdict, deque
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 
 from . import db
 
@@ -40,7 +40,7 @@ def _rate_ok(plugin_id: str, limit: int) -> bool:
     return True
 
 
-async def require_plugin(x_api_key: str = Header(default="")) -> dict:
+async def require_plugin(request: Request, x_api_key: str = Header(default="")) -> dict:
     """FastAPI dependency: resolve + authorize the calling plugin."""
     if not x_api_key:
         raise HTTPException(401, "missing X-API-Key")
@@ -55,7 +55,8 @@ async def require_plugin(x_api_key: str = Header(default="")) -> dict:
     if not _rate_ok(p["id"], p["rate_limit_per_min"]):
         db.audit("denied", "rate_limit", plugin=p["name"])
         raise HTTPException(429, "rate limit exceeded")
-    db.execute("UPDATE plugins SET last_seen=? WHERE id=?", (time.time(), p["id"]))
+    client_ip = request.client.host if request.client else None
+    db.execute("UPDATE plugins SET last_seen=?, last_ip=? WHERE id=?", (time.time(), client_ip, p["id"]))
     p["capabilities"] = json.loads(p["capabilities"])
     return p
 

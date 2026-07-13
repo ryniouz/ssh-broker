@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }} key — SSH Broker{% endblock %}
+{% block body %}
+<div class="page-h"><h1>{{ 'Key rotated' if rotated else 'Plugin created' }}: {{ p.name }}</h1>
+  <p>Save this now — the API key is shown <strong>once</strong> and can't be retrieved later.</p></div>
+
+<section class="card">
+  <h2>Plugin API key</h2>
+  <div class="keybox"><code id="pk">{{ api_key }}</code><button type="button" class="copy" onclick="copyText('pk', this)">Copy</button></div>
+  <p class="small">Send it as the <code>X-API-Key</code> header. If you lose it, use <em>Regenerate key</em> on the plugin page.</p>
+</section>
+
+<section class="card">
+  <h2>Instruction file for this plugin</h2>
+  <p class="small">Copy this into your app repo as <code>PLUGIN_{{ p.name }}.md</code>. It documents the key, auth and every command — so your app (and the next Claude session) knows how to call it.</p>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem">
+    <button type="button" class="copy" onclick="copyText('usage', this)">Copy all</button>
+  </div>
+  <textarea id="usage" class="cloud-box" readonly spellcheck="false">{{ usage }}</textarea>
+</section>
+
+<a href="/plugins/{{ p.name }}" class="btn">Go to plugin →</a>
+{% endblock %}
