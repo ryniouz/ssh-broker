@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Manual — SSH Broker{% endblock %}
 {% block body %}
+<div class="wrap">
 <div class="page-h"><h1>Manual</h1><p>How the broker works and how to connect apps to it.</p></div>
 
 {% if admin_token %}
@@ -23,4 +24,5 @@
   </div>
   <textarea id="claude" class="cloud-box" readonly spellcheck="false">{{ claude_text }}</textarea>
 </section>
+</div>
 {% endblock %}

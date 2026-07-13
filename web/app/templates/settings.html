@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Settings — SSH Broker{% endblock %}
 {% block body %}
+<div class="wrap">
 <div class="page-h"><h1>Settings</h1><p>Connect the broker to your host and manage its access.</p></div>
 
 <section class="card">
@@ -59,4 +60,5 @@
   <div class="keybox"><code id="adm">{{ admin_token }}</code><button type="button" class="copy" onclick="copyText('adm', this)">Copy</button></div>
 </section>
 {% endif %}
+</div>
 {% endblock %}

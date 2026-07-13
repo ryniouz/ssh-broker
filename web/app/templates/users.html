@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Users — SSH Broker{% endblock %}
 {% block body %}
+<div class="wrap">
 <div class="page-h"><h1>Users</h1><p>New sign-ups stay pending until you approve them.</p></div>
 <section class="card">
+  <div class="table-wrap">
   <table>
     <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Created</th><th></th></tr></thead>
     <tbody>
@@ -27,5 +29,7 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
+</div>
 {% endblock %}

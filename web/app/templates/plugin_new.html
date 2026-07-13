@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}New plugin — SSH Broker{% endblock %}
 {% block body %}
+<div class="wrap">
 <div class="page-h"><h1>New plugin</h1><p>Declare what an app may do. See the <a href="/manual">Manual</a> for the full schema and examples (Docker, GPU, sensors…).</p></div>
 <section class="card">
   {% if error %}<div class="err">{{ error }}</div>{% endif %}
@@ -22,4 +23,5 @@
     </div>
   </form>
 </section>
+</div>
 {% endblock %}

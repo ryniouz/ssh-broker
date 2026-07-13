@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ p.name if p else 'Plugin' }} — SSH Broker{% endblock %}
 {% block body %}
+<div class="wrap">
 {% if not p %}
   <div class="page-h"><h1>Plugin</h1></div>
   <div class="err">{{ error }}</div>
@@ -93,6 +94,7 @@
 
 <section class="card">
   <h2>Activity log <span class="count">{{ logs|length }}</span></h2>
+  <div class="table-wrap">
   <table>
     <thead><tr><th>Time</th><th>Level</th><th>IP</th><th>Action</th><th>Detail</th></tr></thead>
     <tbody>
@@ -109,9 +111,11 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
   <p class="small" style="margin-top:.6rem"><a href="/logs?plugin={{ p.name }}">Open in full log view →</a></p>
 </section>
 
 <a href="/" class="btn btn-ghost">← Back to dashboard</a>
 {% endif %}
+</div>
 {% endblock %}

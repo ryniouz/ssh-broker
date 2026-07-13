@@ -14,7 +14,7 @@
   <aside class="sidebar">
     <div class="brand">
       <img src="/static/logo.png" alt="SSH Broker">
-      <div><div class="name">SSH Broker</div><div class="ver">v1.2.5</div></div>
+      <div><div class="name">SSH Broker</div><div class="ver">v1.2.6</div></div>
     </div>
     <nav class="nav">
       <a href="/">Dashboard</a>
@@ -35,7 +35,39 @@
       </div>
     </div>
   </aside>
-  <main class="main"><div class="wrap">{% block body %}{% endblock %}</div></main>
+
+  <div class="mtop">
+    <img src="/static/logo.png" alt="">
+    <b>SSH Broker</b><span class="ver">v1.2.6</span>
+    <a href="/logout" class="signout">Sign out</a>
+  </div>
+
+  <main class="main">{% block body %}{% endblock %}</main>
+
+  <nav class="mtabs">
+    <a href="/">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a href="/logs">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
+      Logs
+    </a>
+    <a href="/manual">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5V4.5Z"/><path d="M20 19H6.5a2.5 2.5 0 0 0 0 5H20"/></svg>
+      Manual
+    </a>
+    {% if is_admin %}
+    <a href="/users">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Users{% if pending %}<span class="dot">{{ pending }}</span>{% endif %}
+    </a>
+    <a href="/settings">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+      Settings
+    </a>
+    {% endif %}
+  </nav>
 </div>
 {% else %}
   {% block auth %}{% endblock %}
@@ -43,7 +75,7 @@
 
 <script>
 (function(){
-  document.querySelectorAll('.nav a').forEach(function(a){
+  document.querySelectorAll('.nav a, .mtabs a').forEach(function(a){
     if(a.getAttribute('href')===location.pathname) a.classList.add('active');
   });
   updateThemeLabel();

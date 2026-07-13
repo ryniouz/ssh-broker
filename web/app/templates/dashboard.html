@@ -1,67 +1,70 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — SSH Broker{% endblock %}
 {% block body %}
-<div class="page-h"><h1>Dashboard</h1><p>Broker health and the apps connected to it.</p></div>
-
-{% if error %}<div class="err">Broker API unreachable: {{ error }}</div>{% endif %}
-
-{% if is_admin and pending %}
-  <div class="notice"><strong>{{ pending }}</strong> account{{ 's' if pending > 1 else '' }} awaiting approval. <a href="/users">Review in Users →</a></div>
-{% endif %}
-
 {% if health %}
   {% set ssh = health.ssh %}
-  <div class="card">
-    <h2>Broker → Host</h2>
-    <div class="prompt">
-      <span class="u">ssh&nbsp;</span>
-      <span>{{ ssh.target or 'root@—' }}</span>
+  <div class="band band-dark">
+    <div class="band-inner">
+      <p class="eyebrow">
+        {% if ssh.configured and ssh.connected %}● connected{% elif ssh.configured %}● reconnecting{% else %}○ not configured{% endif %}
+      </p>
+      <h1 class="disp" style="font-size:clamp(1.4rem,2.4vw,1.9rem)">Broker → Host</h1>
+      <div class="prompt">
+        <span class="u">ssh&nbsp;</span>
+        <span>{{ ssh.target or 'root@—' }}</span>
+        {% if not ssh.configured %}
+          <span class="bad">&nbsp;— not configured</span>
+        {% elif ssh.connected %}
+          <span class="ok">&nbsp;— connected via {{ ssh.auth_method or 'key' }} ✓</span>
+        {% else %}
+          <span class="cur">&nbsp;— reconnecting…</span>
+        {% endif %}
+      </div>
       {% if not ssh.configured %}
-        <span class="bad">&nbsp;— not configured</span>
-      {% elif ssh.connected %}
-        <span class="ok">&nbsp;— connected via {{ ssh.auth_method or 'key' }} ✓</span>
-      {% else %}
-        <span class="cur">&nbsp;— reconnecting…</span>
+        <p class="small" style="margin:.8rem 0 0">No SSH key yet.
+          {% if is_admin %}<a href="/settings">Acquire one in Settings →</a>{% else %}Ask an admin to set it up.{% endif %}</p>
+      {% elif ssh.last_error and not ssh.connected %}
+        <p class="small warn" style="margin:.8rem 0 0">{{ ssh.last_error }}</p>
       {% endif %}
     </div>
-    {% if not ssh.configured %}
-      <p class="small" style="margin:.7rem 0 0">No SSH key yet.
-        {% if is_admin %}<a href="/settings">Acquire one in Settings →</a>{% else %}Ask an admin to set it up.{% endif %}</p>
-    {% elif ssh.last_error and not ssh.connected %}
-      <p class="small warn" style="margin:.7rem 0 0">{{ ssh.last_error }}</p>
-    {% endif %}
   </div>
 {% endif %}
 
-<div class="card">
-  <h2>Plugins <span class="count">{{ plugins|length }}</span>
-    {% if is_admin %}<a href="/plugins/new" class="btn mini" style="margin-left:auto">+ New plugin</a>{% endif %}
-  </h2>
-  <table>
-    <thead><tr><th>Name</th><th>Connection</th><th>Client IP</th><th>Capabilities</th><th>Rate</th><th>State</th></tr></thead>
-    <tbody>
-    {% for p in plugins %}
-      {% set caps = p.capabilities|fromjson %}
-      <tr>
-        <td class="mono">{% if is_admin %}<a href="/plugins/{{ p.name }}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</td>
-        <td>
-          {% if not p.enabled %}<span class="pill off">disabled</span>
-          {% elif p.last_seen|recent %}<span class="pill on">● active</span> <span class="small">{{ p.last_seen|ago }}</span>
-          {% elif p.last_seen %}<span class="pill idle">idle</span> <span class="small">{{ p.last_seen|ago }}</span>
-          {% else %}<span class="small">never connected</span>{% endif %}
-        </td>
-        <td class="mono small">{{ p.last_ip or '—' }}</td>
-        <td class="mono small">
-          {% if caps.metrics %}metrics: {{ caps.metrics|join(', ') }}<br>{% endif %}
-          {% if caps.commands %}cmds: {{ caps.commands.keys()|join(', ') }}{% endif %}
-        </td>
-        <td class="mono small">{{ p.rate_limit_per_min }}/min</td>
-        <td>{% if p.enabled %}<span class="pill on">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="6" class="empty">No plugins yet.{% if is_admin %} <a href="/plugins/new">Create one →</a>{% endif %}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
+<div class="wrap">
+  {% if error %}<div class="err">Broker API unreachable: {{ error }}</div>{% endif %}
+
+  {% if is_admin and pending %}
+    <div class="notice"><strong>{{ pending }}</strong> account{{ 's' if pending > 1 else '' }} awaiting approval. <a href="/users">Review in Users →</a></div>
+  {% endif %}
+
+  <div class="page-h" style="display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+    <div><h1 style="font-size:1.3rem">Plugins <span class="mono small" style="font-weight:500">· {{ plugins|length }}</span></h1></div>
+    {% if is_admin %}<a href="/plugins/new" class="btn">+ New plugin</a>{% endif %}
+  </div>
+
+  <div class="grid">
+  {% for p in plugins %}
+    {% set caps = p.capabilities|fromjson %}
+    <div class="pcard">
+      <div class="top">
+        <span class="pname">{% if is_admin %}<a href="/plugins/{{ p.name }}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</span>
+        {% if not p.enabled %}<span class="pill off">disabled</span>
+        {% elif p.last_seen|recent %}<span class="pill on">● active</span>
+        {% elif p.last_seen %}<span class="pill idle">idle</span>
+        {% else %}<span class="pill off">never connected</span>{% endif %}
+      </div>
+      <p class="desc">
+        {% if caps.metrics %}metrics: {{ caps.metrics|join(', ') }}<br>{% endif %}
+        {% if caps.commands %}cmds: {{ caps.commands.keys()|join(', ') }}{% endif %}
+      </p>
+      <div class="meta">
+        <span>{{ p.last_ip or '— no IP yet' }}</span>
+        <span>{{ p.rate_limit_per_min }}/min</span>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty" style="grid-column:1/-1">No plugins yet.{% if is_admin %} <a href="/plugins/new">Create one →</a>{% endif %}</div>
+  {% endfor %}
+  </div>
 </div>
 {% endblock %}
