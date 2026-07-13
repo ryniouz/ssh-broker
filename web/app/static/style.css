@@ -4,7 +4,7 @@
   --bg:#fbfbfa; --surface:#ffffff; --surface-2:#f5f6f7;
   --ink:#16181d; --muted:#5b6470; --faint:#8b929c;
   --line:#e9eaed; --line-strong:#dfe1e5;
-  --accent:#16a34a; --accent-ink:#0b7a37; --accent-soft:#e9f7ef;
+  --accent:#16a34a; --accent-ink:#0b7a37; --accent-soft:#e9f7ef; --on-accent:#ffffff;
   --danger:#dc2626; --danger-soft:#fdecec; --warn:#b7791f; --warn-soft:#fbf3e3;
   --shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
   --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -15,7 +15,7 @@
   --bg:#0c0e12; --surface:#13161c; --surface-2:#191d25;
   --ink:#e8eaed; --muted:#9aa4b2; --faint:#6b7480;
   --line:#232833; --line-strong:#2c3340;
-  --accent:#3ddc84; --accent-ink:#4ade80; --accent-soft:rgba(61,220,132,.12);
+  --accent:#3ddc84; --accent-ink:#4ade80; --accent-soft:rgba(61,220,132,.12); --on-accent:#08130c;
   --danger:#f87171; --danger-soft:rgba(248,113,113,.12); --warn:#e0b341; --warn-soft:rgba(224,179,65,.12);
   --shadow:0 1px 2px rgba(0,0,0,.3);
 }
@@ -104,13 +104,12 @@ tbody tr:last-child td{border-bottom:0}
 .pill.error{color:var(--danger);background:var(--danger-soft)}
 .pill.denied,.pill.pending{color:var(--warn);background:var(--warn-soft)}
 .badge{display:inline-block;min-width:1.15rem;text-align:center;background:var(--accent);
-  color:#fff;border-radius:999px;font-size:.68rem;font-weight:700;padding:0 .35rem;font-family:var(--mono)}
-:root[data-theme="night"] .badge{color:#08130c}
+  color:var(--on-accent);border-radius:999px;font-size:.68rem;font-weight:700;padding:0 .35rem;font-family:var(--mono)}
 
-/* buttons */
+/* buttons — only the FILLED (primary) button uses on-accent text; ghost/danger/
+   mini set their own color and must not be overridden by theme. */
 button,.btn{font-family:var(--sans);font-size:.85rem;font-weight:600;cursor:pointer;
-  border-radius:9px;padding:.5rem .95rem;border:1px solid transparent;background:var(--accent);color:#fff}
-:root[data-theme="night"] button,:root[data-theme="night"] .btn{color:#08130c}
+  border-radius:9px;padding:.5rem .95rem;border:1px solid transparent;background:var(--accent);color:var(--on-accent)}
 button:hover,.btn:hover{filter:brightness(1.05)}
 .btn-ghost{background:var(--surface);border-color:var(--line-strong);color:var(--ink)}
 .btn-ghost:hover{background:var(--surface-2);filter:none}

@@ -25,5 +25,5 @@ async def metrics(plugin: dict = Depends(auth.require_plugin)):
                 filtered[k] = data[k]
     if not allowed:
         raise HTTPException(403, "no metric capabilities granted")
-    db.audit("info", "metrics", plugin=plugin["name"])
+    db.audit("info", "metrics", plugin=plugin["name"], ip=plugin.get("ip"))
     return {"as_of": snap["as_of"], "stale_seconds": snap["stale_seconds"], "data": filtered}

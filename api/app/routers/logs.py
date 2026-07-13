@@ -15,7 +15,7 @@ def _require_admin(x_admin_token: str) -> None:
 @router.get("")
 def recent(limit: int = 200, level: str = "", plugin: str = "", x_admin_token: str = Header(default="")):
     _require_admin(x_admin_token)
-    sql = "SELECT ts,plugin,level,action,detail FROM logs WHERE 1=1"
+    sql = "SELECT ts,plugin,level,action,detail,ip FROM logs WHERE 1=1"
     args: list = []
     if level:
         sql += " AND level=?"

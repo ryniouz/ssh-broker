@@ -22,7 +22,7 @@ async def run(req: RunRequest, plugin: dict = Depends(auth.require_plugin)):
         raise HTTPException(503, "broker SSH target not configured — an admin must acquire a key first")
     spec = auth.command_spec(plugin, req.command)
     if spec is None:
-        db.audit("denied", "exec", plugin=plugin["name"], detail=f"command '{req.command}' not granted")
+        db.audit("denied", "exec", plugin=plugin["name"], detail=f"command '{req.command}' not granted", ip=plugin.get("ip"))
         raise HTTPException(403, f"command '{req.command}' not permitted for this plugin")
 
     # validate each supplied param against the plugin-declared regex
@@ -35,7 +35,7 @@ async def run(req: RunRequest, plugin: dict = Depends(auth.require_plugin)):
             continue
         pattern = pspec.get("pattern", ".*")
         if not re.fullmatch(pattern, str(val)):
-            db.audit("denied", "exec", plugin=plugin["name"], detail=f"param '{pname}' failed pattern")
+            db.audit("denied", "exec", plugin=plugin["name"], detail=f"param '{pname}' failed pattern", ip=plugin.get("ip"))
             raise HTTPException(400, f"param '{pname}' does not match required pattern")
 
     result = await manager.run_template(spec["template"], req.params, timeout=spec.get("timeout", 60))
@@ -44,6 +44,7 @@ async def run(req: RunRequest, plugin: dict = Depends(auth.require_plugin)):
         "exec",
         plugin=plugin["name"],
         detail={"command": req.command, "rc": result["rc"]},
+        ip=plugin.get("ip"),
     )
     return result
 
@@ -63,9 +64,9 @@ async def upload(req: UploadRequest, plugin: dict = Depends(auth.require_plugin)
         raise HTTPException(503, "broker SSH target not configured — an admin must acquire a key first")
     allowed_prefix = up.get("path_prefix", "/tmp/")
     if not req.remote_path.startswith(allowed_prefix):
-        db.audit("denied", "upload", plugin=plugin["name"], detail=req.remote_path)
+        db.audit("denied", "upload", plugin=plugin["name"], detail=req.remote_path, ip=plugin.get("ip"))
         raise HTTPException(403, f"remote_path must start with {allowed_prefix}")
     data = base64.b64decode(req.content_base64)
     res = await manager.upload(data, req.remote_path)
-    db.audit("info", "upload", plugin=plugin["name"], detail=res)
+    db.audit("info", "upload", plugin=plugin["name"], detail=res, ip=plugin.get("ip"))
     return res

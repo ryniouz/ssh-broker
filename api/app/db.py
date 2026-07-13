@@ -56,14 +56,18 @@ def init_db() -> None:
                 plugin TEXT,
                 level TEXT NOT NULL,          -- info | error | denied
                 action TEXT NOT NULL,
-                detail TEXT
+                detail TEXT,
+                ip TEXT                       -- client IP of the request, if known
             );
             """
         )
         # migrate older DBs that predate per-plugin connection tracking
-        cols = {r[1] for r in c.execute("PRAGMA table_info(plugins)")}
-        if "last_ip" not in cols:
+        pcols = {r[1] for r in c.execute("PRAGMA table_info(plugins)")}
+        if "last_ip" not in pcols:
             c.execute("ALTER TABLE plugins ADD COLUMN last_ip TEXT")
+        lcols = {r[1] for r in c.execute("PRAGMA table_info(logs)")}
+        if "ip" not in lcols:
+            c.execute("ALTER TABLE logs ADD COLUMN ip TEXT")
         c.commit()
 
 
@@ -82,10 +86,11 @@ def execute(sql: str, args: tuple = ()) -> None:
         c.commit()
 
 
-def audit(level: str, action: str, plugin: str | None = None, detail: Any = None) -> None:
+def audit(level: str, action: str, plugin: str | None = None, detail: Any = None,
+          ip: str | None = None) -> None:
     if not isinstance(detail, str):
         detail = json.dumps(detail, default=str)
     execute(
-        "INSERT INTO logs (ts, plugin, level, action, detail) VALUES (?,?,?,?,?)",
-        (time.time(), plugin, level, action, detail),
+        "INSERT INTO logs (ts, plugin, level, action, detail, ip) VALUES (?,?,?,?,?,?)",
+        (time.time(), plugin, level, action, detail, ip),
     )

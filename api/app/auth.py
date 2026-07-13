@@ -42,22 +42,23 @@ def _rate_ok(plugin_id: str, limit: int) -> bool:
 
 async def require_plugin(request: Request, x_api_key: str = Header(default="")) -> dict:
     """FastAPI dependency: resolve + authorize the calling plugin."""
+    client_ip = request.client.host if request.client else None
     if not x_api_key:
         raise HTTPException(401, "missing X-API-Key")
     rows = db.q("SELECT * FROM plugins WHERE api_key_hash=?", (hash_key(x_api_key),))
     if not rows:
-        db.audit("denied", "auth", detail="bad api key")
+        db.audit("denied", "auth", detail="bad api key", ip=client_ip)
         raise HTTPException(401, "invalid api key")
     p = dict(rows[0])
     if not p["enabled"]:
-        db.audit("denied", "auth", plugin=p["name"], detail="plugin disabled")
+        db.audit("denied", "auth", plugin=p["name"], detail="plugin disabled", ip=client_ip)
         raise HTTPException(403, "plugin disabled")
     if not _rate_ok(p["id"], p["rate_limit_per_min"]):
-        db.audit("denied", "rate_limit", plugin=p["name"])
+        db.audit("denied", "rate_limit", plugin=p["name"], ip=client_ip)
         raise HTTPException(429, "rate limit exceeded")
-    client_ip = request.client.host if request.client else None
     db.execute("UPDATE plugins SET last_seen=?, last_ip=? WHERE id=?", (time.time(), client_ip, p["id"]))
     p["capabilities"] = json.loads(p["capabilities"])
+    p["ip"] = client_ip
     return p
 
 

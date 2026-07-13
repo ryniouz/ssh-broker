@@ -15,18 +15,19 @@
   </form>
   {% if error %}<div class="err">{{ error }}</div>{% endif %}
   <table>
-    <thead><tr><th>Time</th><th>Level</th><th>Plugin</th><th>Action</th><th>Detail</th></tr></thead>
+    <thead><tr><th>Time</th><th>Level</th><th>Plugin</th><th>IP</th><th>Action</th><th>Detail</th></tr></thead>
     <tbody>
     {% for r in rows %}
       <tr>
         <td class="mono small">{{ r.ts|fmtts }}</td>
         <td><span class="pill {{ r.level }}">{{ r.level }}</span></td>
         <td class="mono small">{{ r.plugin or '—' }}</td>
+        <td class="mono small">{{ r.ip or '—' }}</td>
         <td class="mono small">{{ r.action }}</td>
         <td class="mono small detail">{{ r.detail }}</td>
       </tr>
     {% else %}
-      <tr><td colspan="5" class="empty">No log entries yet.</td></tr>
+      <tr><td colspan="6" class="empty">No log entries yet.</td></tr>
     {% endfor %}
     </tbody>
   </table>

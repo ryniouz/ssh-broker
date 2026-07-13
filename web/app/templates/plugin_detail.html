@@ -92,17 +92,18 @@
 <section class="card">
   <h2>Activity log <span class="count">{{ logs|length }}</span></h2>
   <table>
-    <thead><tr><th>Time</th><th>Level</th><th>Action</th><th>Detail</th></tr></thead>
+    <thead><tr><th>Time</th><th>Level</th><th>IP</th><th>Action</th><th>Detail</th></tr></thead>
     <tbody>
     {% for r in logs %}
       <tr>
         <td class="mono small">{{ r.ts|fmtts }}</td>
         <td><span class="pill {{ r.level }}">{{ r.level }}</span></td>
+        <td class="mono small">{{ r.ip or '—' }}</td>
         <td class="mono small">{{ r.action }}</td>
         <td class="mono small detail">{{ r.detail }}</td>
       </tr>
     {% else %}
-      <tr><td colspan="4" class="empty">No activity yet for this plugin.</td></tr>
+      <tr><td colspan="5" class="empty">No activity yet for this plugin.</td></tr>
     {% endfor %}
     </tbody>
   </table>
