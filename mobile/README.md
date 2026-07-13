@@ -35,9 +35,14 @@ cd mobile
 ```
 
 ## Publish to the personal App Store
-After building, from the build dir:
+After building, from the build dir. **Write the icon data URL to a file first** —
+curl's `-F name=value` treats a literal `;` in `value` as the start of multipart
+parameters, so inlining `data:image/png;base64,...` directly gets silently
+truncated to `"data:image/png"` (no image data) every time:
 
 ```bash
+printf 'data:image/png;base64,%s' "$(base64 -w0 resources/icon-src.png)" > /tmp/icon_dataurl.txt
+
 curl -fSS -X POST https://app.ryniouz.com/api/upload \
   -H "Authorization: Bearer <token>" \
   -F apk=@app-release.apk \
@@ -48,7 +53,7 @@ curl -fSS -X POST https://app.ryniouz.com/api/upload \
   -F changelog="First release." \
   -F githubUrl="https://github.com/ryniouz/ssh-broker" \
   -F "readme=<README.md" \
-  -F "icon=data:image/png;base64,$(base64 -w0 resources/icon-src.png)"
+  -F "icon=</tmp/icon_dataurl.txt"
 ```
 
 ## Changing the broker address
