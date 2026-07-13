@@ -1,0 +1,29 @@
+# --- secrets: never commit these ---
+deploy/broker.env
+**/secrets/
+*.key
+*_ssh_key
+*_ssh_key.pub
+id_ed25519*
+id_rsa*
+known_hosts
+
+# --- runtime data ---
+*.db
+*.db-wal
+*.db-shm
+data/
+**/keys/
+
+# --- python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# --- os / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

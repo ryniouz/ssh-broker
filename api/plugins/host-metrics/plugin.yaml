@@ -1,0 +1,11 @@
+# Read-only host telemetry plugin. Good template for a dashboard/monitoring app.
+name: host-metrics
+description: Read CPU, RAM and disk usage from the managed host.
+enabled: true
+rate_limit_per_min: 120
+
+capabilities:
+  # which cached metric families this plugin may read
+  metrics: [cpu, ram, disk]
+  # no commands, no upload -> this key can ONLY read metrics
+  commands: {}

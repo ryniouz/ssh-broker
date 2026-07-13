@@ -1,0 +1,48 @@
+# Example: the "cloud code" app that manages Docker images/containers on the host.
+# Each command is a NAMED, whitelisted template. The app calls the command by
+# name and supplies params; params are regex-validated then shell-quoted before
+# they ever touch the host. The app can NEVER send raw shell.
+name: cloud-code-docker
+description: Pull images, manage containers and query Docker status on the host.
+enabled: true
+rate_limit_per_min: 60
+
+capabilities:
+  metrics: [cpu, ram]
+
+  commands:
+    docker_ps:
+      # $-placeholders are for params; Docker's {{.X}} passes through untouched.
+      template: "docker ps --format '{{.Names}}\t{{.Status}}\t{{.Image}}'"
+      timeout: 20
+      params: {}
+
+    docker_pull:
+      template: "docker pull $image"
+      timeout: 300
+      params:
+        image:
+          pattern: "^[a-zA-Z0-9._/:@-]+$"   # registry/name:tag only
+          required: true
+
+    docker_restart:
+      template: "docker restart $name"
+      timeout: 60
+      params:
+        name:
+          pattern: "^[a-zA-Z0-9._-]+$"
+          required: true
+
+    # unraid's stock Docker has no `docker compose`; this uses the standalone
+    # compose plugin path if the Compose Manager is installed. Adjust as needed.
+    compose_up:
+      template: "cd $project_dir && docker compose up -d"
+      timeout: 300
+      params:
+        project_dir:
+          pattern: "^/mnt/user/[a-zA-Z0-9._/-]+$"
+          required: true
+
+  # allow pushing compose files / configs, but only under a safe path
+  upload:
+    path_prefix: "/mnt/user/appdata/"

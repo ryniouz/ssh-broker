@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Create admin — SSH Broker{% endblock %}
+{% block body %}
+<div class="auth-card">
+  <h1>◆ SSH Broker</h1>
+  <p class="sub">Create the first admin account</p>
+  <form method="post" action="/signup">
+    <label>Username<input name="username" autocomplete="username" required></label>
+    <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>
+    <button type="submit">Create admin</button>
+  </form>
+  <p class="hint">This form is only available until the first admin exists.</p>
+</div>
+{% endblock %}

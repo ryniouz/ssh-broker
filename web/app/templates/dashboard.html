@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — SSH Broker{% endblock %}
+{% block body %}
+{% if error %}<div class="err">API unreachable: {{ error }}</div>{% endif %}
+
+<section class="grid">
+  <div class="card status">
+    <h2>Broker → Host</h2>
+    {% if health %}
+      {% set ssh = health.ssh %}
+      <div class="stat {{ 'ok' if ssh.connected else 'bad' }}">
+        {{ 'CONNECTED' if ssh.connected else 'DISCONNECTED' }}
+      </div>
+      <dl>
+        <dt>Target</dt><dd>{{ ssh.target }}</dd>
+        <dt>Version</dt><dd>{{ health.version }}</dd>
+        {% if ssh.last_error %}<dt>Last error</dt><dd class="warn">{{ ssh.last_error }}</dd>{% endif %}
+      </dl>
+    {% else %}
+      <div class="stat bad">UNKNOWN</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card">
+  <h2>Plugins <span class="count">{{ plugins|length }}</span></h2>
+  <table>
+    <thead><tr><th>Name</th><th>Description</th><th>Capabilities</th><th>Rate</th><th>Last seen</th><th>State</th><th></th></tr></thead>
+    <tbody>
+    {% for p in plugins %}
+      {% set caps = p.capabilities|fromjson %}
+      <tr>
+        <td class="mono">{{ p.name }}</td>
+        <td>{{ p.description }}</td>
+        <td class="mono small">
+          {% if caps.metrics %}metrics: {{ caps.metrics|join(', ') }}<br>{% endif %}
+          {% if caps.commands %}cmds: {{ caps.commands.keys()|join(', ') }}{% endif %}
+        </td>
+        <td>{{ p.rate_limit_per_min }}/min</td>
+        <td class="small">{{ p.last_seen|ago }}</td>
+        <td>{% if p.enabled %}<span class="pill on">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}</td>
+        <td>
+          <form method="post" action="/plugins/{{ p.name }}/{{ 'disable' if p.enabled else 'enable' }}">
+            <button class="mini">{{ 'Disable' if p.enabled else 'Enable' }}</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="empty">No plugins registered yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SSH Broker{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+{% if user %}
+<header class="topbar">
+  <div class="brand">◆ SSH&nbsp;Broker <span class="ver">v1.0.0</span></div>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/logs">Logs</a>
+    <span class="who">{{ user }}</span>
+    <a href="/logout" class="logout">Sign out</a>
+  </nav>
+</header>
+{% endif %}
+<main class="wrap">
+  {% block body %}{% endblock %}
+</main>
+</body>
+</html>

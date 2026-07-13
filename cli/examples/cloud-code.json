@@ -1,0 +1,27 @@
+{
+  "name": "cloud-code",
+  "description": "cloud code deploy agent — pulls images and manages containers",
+  "enabled": true,
+  "rate_limit_per_min": 60,
+  "capabilities": {
+    "metrics": ["cpu", "ram"],
+    "commands": {
+      "docker_ps": {
+        "template": "docker ps --format '{{.Names}}\t{{.Status}}\t{{.Image}}'",
+        "timeout": 20,
+        "params": {}
+      },
+      "docker_pull": {
+        "template": "docker pull $image",
+        "timeout": 300,
+        "params": { "image": { "pattern": "^[a-zA-Z0-9._/:@-]+$", "required": true } }
+      },
+      "docker_restart": {
+        "template": "docker restart $name",
+        "timeout": 60,
+        "params": { "name": { "pattern": "^[a-zA-Z0-9._-]+$", "required": true } }
+      }
+    },
+    "upload": { "path_prefix": "/mnt/user/appdata/" }
+  }
+}
