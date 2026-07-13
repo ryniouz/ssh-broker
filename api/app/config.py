@@ -17,9 +17,10 @@ class Settings(BaseSettings):
     ssh_user: str = "root"
     # Path to the private key INSIDE the container (mounted as a Docker secret/volume).
     ssh_key_path: str = "/run/secrets/broker_ssh_key"
-    # Known-hosts pinning. If empty, first-seen host key is trusted-on-first-use
-    # and then pinned to this file.
-    ssh_known_hosts: str = "/data/known_hosts"
+    # Known-hosts pinning. Empty (default) disables host-key verification, which
+    # is acceptable for a LAN-only broker connecting to a known host. To pin,
+    # set BROKER_SSH_KNOWN_HOSTS to a path containing the host's public key.
+    ssh_known_hosts: str = ""
 
     # Max concurrent SSH channels multiplexed over the single connection.
     ssh_max_channels: int = 8
